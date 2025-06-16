@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クーポン管理画面</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div id="admin-app">
+        <header class="header">
+            <h1>クーポン管理システム</h1>
+            <nav class="nav">
+                <button id="dashboard-tab" class="nav-btn active">ダッシュボード</button>
+                <button id="coupons-tab" class="nav-btn">クーポン管理</button>
+                <button id="create-tab" class="nav-btn">新規作成</button>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>総クーポン数</h3>
+                        <div class="stat-number" id="total-coupons">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>アクティブ</h3>
+                        <div class="stat-number" id="active-coupons">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>期限切れ</h3>
+                        <div class="stat-number" id="expired-coupons">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>取得数</h3>
+                        <div class="stat-number" id="total-obtained">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>使用数</h3>
+                        <div class="stat-number" id="total-used">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>使用率</h3>
+                        <div class="stat-number" id="usage-rate">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coupons Management View -->
+            <div id="coupons-view" class="view">
+                <div class="view-header">
+                    <h2>クーポン一覧</h2>
+                    <button id="refresh-coupons" class="btn btn-secondary">🔄 更新</button>
+                </div>
+                <div class="table-container">
+                    <table id="coupons-table">
+                        <thead>
+                            <tr>
+                                <th>店舗名</th>
+                                <th>タイトル</th>
+                                <th>割引率</th>
+                                <th>作成日</th>
+                                <th>期限</th>
+                                <th>ステータス</th>
+                                <th>取得数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coupons-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Create Coupon View -->
+            <div id="create-view" class="view">
+                <div class="view-header">
+                    <h2>新規クーポン作成</h2>
+                </div>
+                <form id="create-coupon-form" class="form">
+                    <div class="form-group">
+                        <label for="shop-name">店舗名</label>
+                        <input type="text" id="shop-name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="coupon-title">クーポンタイトル</label>
+                        <input type="text" id="coupon-title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="base-discount">基本割引率 (%)</label>
+                        <input type="number" id="base-discount" min="1" max="100" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expires-minutes">有効期限 (分)</label>
+                        <input type="number" id="expires-minutes" min="1" value="60" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="latitude">緯度</label>
+                            <input type="number" id="latitude" step="any" value="35.6812" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="longitude">経度</label>
+                            <input type="number" id="longitude" step="any" value="139.7671" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="conditions">対象商品・条件</label>
+                        <textarea id="conditions" rows="3" placeholder="例：全商品対象、1000円以上のご購入で..."></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">クーポンを作成</button>
+                        <button type="button" id="reset-form" class="btn btn-secondary">リセット</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>クーポン編集</h3>
+                <button class="close-btn" id="close-edit-modal">&times;</button>
+            </div>
+            <form id="edit-coupon-form" class="form">
+                <input type="hidden" id="edit-coupon-id">
+                
+                <div class="form-group">
+                    <label for="edit-shop-name">店舗名</label>
+                    <input type="text" id="edit-shop-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-coupon-title">クーポンタイトル</label>
+                    <input type="text" id="edit-coupon-title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-base-discount">基本割引率 (%)</label>
+                    <input type="number" id="edit-base-discount" min="1" max="100" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-latitude">緯度</label>
+                        <input type="number" id="edit-latitude" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-longitude">経度</label>
+                        <input type="number" id="edit-longitude" step="any" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="edit-is-active">
+                        アクティブ
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">更新</button>
+                    <button type="button" id="cancel-edit" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="details-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>クーポン詳細</h3>
+                <button class="close-btn" id="close-details-modal">&times;</button>
+            </div>
+            <div id="details-content">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
