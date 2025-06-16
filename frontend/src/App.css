@@ -1,0 +1,521 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: #f0f0f0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.App {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Loading States */
+.app-loading, .map-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #f0f0f0;
+}
+
+.loading-spinner {
+  font-size: 48px;
+  animation: bounce 1s infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+/* Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  display: flex;
+  border-top: 1px solid #e0e0e0;
+  z-index: 1000;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.nav-item.active {
+  color: #ff4444;
+}
+
+.nav-item .icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.nav-item span:last-child {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Main Content */
+.content {
+  flex: 1;
+  position: relative;
+  padding-bottom: 70px;
+}
+
+/* Map View */
+.map-view {
+  height: 100%;
+  position: relative;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.map-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  font-size: 14px;
+  z-index: 100;
+}
+
+.map-info p {
+  margin: 0;
+  margin-bottom: 4px;
+}
+
+.map-info p:last-child {
+  margin-bottom: 0;
+  color: #ff4444;
+  font-weight: 600;
+}
+
+.map-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f8f8f8;
+  color: #666;
+  padding: 20px;
+  text-align: center;
+}
+
+/* MyPage View */
+.mypage-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  color: #333;
+  margin: 0;
+}
+
+.refresh-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background: #f0f0f0;
+}
+
+.filter-tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.filter-tab {
+  flex: 1;
+  padding: 16px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.filter-tab.active {
+  color: #ff4444;
+  border-bottom-color: #ff4444;
+}
+
+.coupon-list {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f8f8f8;
+}
+
+.coupon-item {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.coupon-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.coupon-item.used {
+  opacity: 0.6;
+  background: #f8f8f8;
+}
+
+.coupon-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.shop-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.discount-badge {
+  background: #ff4444;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coupon-title {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.coupon-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.status.used {
+  color: #999;
+}
+
+.status.unused {
+  color: #ff4444;
+  font-weight: 500;
+}
+
+.used-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 0 12px 0 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-state p {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Popup */
+.popup {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.popup.active {
+  display: flex;
+}
+
+.popup-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+  animation: popup-in 0.3s ease-out;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+}
+
+.popup-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup-header h3 {
+  font-size: 18px;
+  color: #333;
+  margin: 0;
+}
+
+.distance {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.distance.nearby {
+  background: #e8f5e8;
+  color: #4caf50;
+}
+
+.distance.far {
+  background: #ffeaa7;
+  color: #d63031;
+}
+
+.popup-body {
+  padding: 24px;
+  text-align: center;
+}
+
+.discount-rate {
+  background: #ff4444;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: inline-block;
+  box-shadow: 0 4px 12px rgba(255,68,68,0.3);
+}
+
+.coupon-title {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.time-remaining {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.coupon-details {
+  margin-bottom: 24px;
+}
+
+.distance-info {
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.distance-info.nearby {
+  background: #e8f5e8;
+}
+
+.distance-info.far {
+  background: #ffeaa7;
+}
+
+.status-nearby {
+  color: #4caf50;
+}
+
+.status-far {
+  color: #d63031;
+}
+
+.get-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.get-btn.enabled {
+  background: #ff4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(255,68,68,0.3);
+}
+
+.get-btn.enabled:hover {
+  background: #e63939;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255,68,68,0.4);
+}
+
+.get-btn.disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.btn-distance {
+  font-size: 12px;
+  font-weight: normal;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  color: white;
+}
+
+.loading-overlay .loading-spinner {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .popup-content {
+    margin: 20px;
+    max-width: none;
+  }
+  
+  .page-header {
+    padding: 16px;
+  }
+  
+  .coupon-list {
+    padding: 12px;
+  }
+  
+  .discount-rate {
+    font-size: 24px;
+    padding: 12px 20px;
+  }
+}
