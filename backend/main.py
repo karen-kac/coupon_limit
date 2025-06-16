@@ -225,7 +225,7 @@ async def get_coupons(lat: float, lng: float, radius: int = 1000, db: Session = 
 
 @app.post("/api/coupons/get")
 async def get_coupon(request: GetCouponRequest, db: Session = Depends(get_db)):
-    """Get a specific coupon if user is within 20m"""
+    """Get a specific coupon if user is within 300m"""
     update_coupon_discounts(db)
     coupon_repo = CouponRepository(db)
     user_coupon_repo = UserCouponRepository(db)
@@ -245,7 +245,7 @@ async def get_coupon(request: GetCouponRequest, db: Session = Depends(get_db)):
         db_coupon.lat, db_coupon.lng
     )
     
-    if distance > 20:  # 20 meters
+    if distance > 300:  # 300 meters
         raise HTTPException(
             status_code=400, 
             detail=f"Too far from coupon location (distance: {distance:.1f}m)"

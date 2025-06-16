@@ -1,46 +1,74 @@
-# Getting Started with Create React App
+# クーポン管理システム フロントエンド
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 概要
+このフロントエンドアプリケーションは、位置情報ベースのクーポン管理システムのユーザーインターフェースを提供します。Reactを使用して構築されており、モダンなUI/UXを実現しています。
 
-## Available Scripts
+## 主な機能
+- 位置情報に基づくクーポンの表示
+- クーポンの取得と使用
+- ユーザーのクーポン一覧表示
+- リアルタイムのクーポン割引率の更新
+- レスポンシブデザイン
 
-In the project directory, you can run:
+## 技術スタック
+- React 18+
+- TypeScript
+- Material-UI
+- React Query
+- Leaflet (地図表示)
 
-### `npm start`
+## セットアップ方法
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+1. 必要なパッケージのインストール:
+```bash
+npm install
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+2. 環境変数の設定:
+```bash
+cp .env.example .env
+# .envファイルを編集して必要な設定を行う
+```
 
-### `npm test`
+3. 開発サーバーの起動:
+```bash
+npm run dev
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## プロジェクト構造
+```
+src/
+  ├── components/     # 再利用可能なコンポーネント
+  ├── pages/         # ページコンポーネント
+  ├── hooks/         # カスタムフック
+  ├── services/      # API通信
+  ├── types/         # TypeScript型定義
+  ├── utils/         # ユーティリティ関数
+  └── styles/        # スタイル定義
+```
 
-### `npm run build`
+## 開発ガイドライン
+- コンポーネントは関数コンポーネントを使用
+- TypeScriptの型定義を適切に行う
+- スタイリングはMaterial-UIを優先
+- テストはJestとReact Testing Libraryを使用
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## ビルドとデプロイ
+本番環境用のビルド:
+```bash
+npm run build
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+ビルドされたファイルは`dist`ディレクトリに生成されます。
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## パフォーマンス最適化
+- コード分割の実装
+- 画像の最適化
+- キャッシュ戦略の実装
+- バンドルサイズの最適化
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+## ブラウザ対応
+- Chrome (最新版)
+- Firefox (最新版)
+- Safari (最新版)
+- Edge (最新版)

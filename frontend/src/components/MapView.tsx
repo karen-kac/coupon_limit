@@ -89,7 +89,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
 
     // Add coupon markers
     coupons.forEach(coupon => {
-      const isNearby = coupon.distance_meters !== undefined && coupon.distance_meters <= 20;
+      const isNearby = coupon.distance_meters !== undefined && coupon.distance_meters <= 300;
       
       const marker = new window.google.maps.Marker({
         position: { lat: coupon.location.lat, lng: coupon.location.lng },
@@ -97,15 +97,15 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         title: coupon.shop_name,
         icon: {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-            <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="5" width="50" height="50" rx="12" fill="#ff4444" stroke="white" stroke-width="3" stroke-dasharray="${isNearby ? '0' : '5,5'}"/>
-              <text x="30" y="25" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">🛍️</text>
-              <text x="30" y="40" text-anchor="middle" fill="white" font-family="Arial" font-size="10" font-weight="bold">COUPON</text>
-              <text x="30" y="50" text-anchor="middle" fill="white" font-family="Arial" font-size="8">${coupon.current_discount}%</text>
+            <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="5" width="70" height="70" rx="16" fill="#ff4444" stroke="white" stroke-width="4" stroke-dasharray="${isNearby ? '0' : '5,5'}"/>
+              <text x="40" y="35" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">🛍️</text>
+              <text x="40" y="55" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">COUPON</text>
+              <text x="40" y="70" text-anchor="middle" fill="white" font-family="Arial" font-size="12">${coupon.current_discount}%</text>
             </svg>
           `),
-          scaledSize: new window.google.maps.Size(60, 60),
-          anchor: new window.google.maps.Point(30, 55)
+          scaledSize: new window.google.maps.Size(80, 80),
+          anchor: new window.google.maps.Point(40, 75)
         },
         animation: isNearby ? window.google.maps.Animation.BOUNCE : undefined
       });
@@ -151,7 +151,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       <div ref={mapRef} className="map-container" style={{ width: '100%', height: '100%' }} />
       <div className="map-info">
         <p>🎯 周辺のクーポン: {coupons.length}件</p>
-        {coupons.some(c => c.distance_meters !== undefined && c.distance_meters <= 20) && (
+        {coupons.some(c => c.distance_meters !== undefined && c.distance_meters <= 300) && (
           <p>✨ 取得可能なクーポンがあります！</p>
         )}
       </div>

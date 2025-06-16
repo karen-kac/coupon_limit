@@ -22,7 +22,7 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
         coupon.location.lng
       );
       setDistance(dist);
-      setIsNearby(dist <= 20);
+      setIsNearby(dist <= 300);
     }
   }, [userLocation, coupon.location]);
 
@@ -109,7 +109,7 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
                   </span>
                 ) : (
                   <span className="status-far">
-                    📍 あと{Math.round(distance - 20)}m近づく必要があります
+                    📍 あと{Math.round(distance - 300)}m近づく必要があります
                   </span>
                 )}
               </div>
@@ -125,7 +125,7 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
               {isNearby ? 'クーポンを取得' : 'クーポンを取得'}
             </span>
             <span className="btn-distance">
-              {isNearby ? '取得可能' : '（20m以内で取得可能）'}
+              {isNearby ? '取得可能' : '（300m以内で取得可能）'}
             </span>
           </button>
         </div>
