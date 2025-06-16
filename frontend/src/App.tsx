@@ -15,9 +15,15 @@ function App() {
   const [userId] = useState('user-' + Math.random().toString(36).substr(2, 9));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     getCurrentLocation();
+    // スプラッシュスクリーンを3秒後に非表示
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -88,6 +94,18 @@ function App() {
     }
   };
 
+  if (showSplash) {
+    return (
+      <div className="splash-screen">
+        <div className="splash-content">
+          <h1>🎟️ クーポンリミット</h1>
+          <p>あなたの街のクーポンを見つけよう</p>
+          <div className="loading-spinner">📍</div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="app-loading">
@@ -99,6 +117,11 @@ function App() {
 
   return (
     <div className="App">
+      <header className="app-header">
+        <h1>クーポンリミット</h1>
+        <p className="app-description">近くのクーポンを探して、お得にショッピング</p>
+      </header>
+
       <nav className="bottom-nav">
         <button
           className={`nav-item ${activeTab === 'map' ? 'active' : ''}`}

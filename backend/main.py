@@ -15,7 +15,7 @@ app = FastAPI(title="Coupon Location API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # 開発中は "*" でOK
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
