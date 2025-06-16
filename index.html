@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クーポン配信アプリ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <nav class="bottom-nav">
+            <button id="map-tab" class="nav-item active">
+                <span class="icon">📍</span>
+                <span>マップ</span>
+            </button>
+            <button id="mypage-tab" class="nav-item">
+                <span class="icon">👤</span>
+                <span>マイページ</span>
+            </button>
+        </nav>
+
+        <main id="content">
+            <div id="map-view" class="view active">
+                <div id="map"></div>
+                <div id="location-status" class="status-info">位置情報を取得中...</div>
+            </div>
+
+            <div id="mypage-view" class="view">
+                <div class="page-header">
+                    <h1>マイページ</h1>
+                </div>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">すべて</button>
+                    <button class="filter-tab" data-filter="unused">未使用</button>
+                    <button class="filter-tab" data-filter="used">使用済み</button>
+                </div>
+                <div id="coupon-list" class="coupon-list">
+                    <div class="empty-state">
+                        <p>まだクーポンがありません</p>
+                        <p>マップでクーポンを探してみましょう！</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="coupon-popup" class="popup">
+        <div class="popup-content">
+            <button class="close-btn">&times;</button>
+            <div class="popup-header">
+                <h3 id="popup-shop-name">店舗名</h3>
+                <span id="popup-distance">20m</span>
+            </div>
+            <div class="popup-body">
+                <div class="discount-rate" id="popup-discount">15% OFF</div>
+                <div class="coupon-title" id="popup-title">クーポンタイトル</div>
+                <div class="time-remaining" id="popup-time">残り 8:23</div>
+                <button id="get-coupon-btn" class="get-btn" disabled>
+                    <span class="btn-text">クーポンを取得</span>
+                    <span class="btn-distance">（20m以内で取得可能）</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="explosion-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
