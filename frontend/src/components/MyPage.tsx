@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserCoupon } from '../types';
-import { useCoupon } from '../services/api';
+import { couponApi } from '../services/api';
 
 interface MyPageProps {
   coupons: UserCoupon[];
@@ -22,7 +22,7 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
     
     setLoading(true);
     try {
-      await useCoupon(coupon.user_id, coupon.id);
+      await couponApi(coupon.user_id, coupon.id);
       onRefresh();
     } catch (error: any) {
       alert(error.message || 'Failed to use coupon');

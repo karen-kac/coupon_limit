@@ -39,7 +39,7 @@ export const getCoupon = async (couponId: string, userLocation: Location, userId
   return response.json();
 };
 
-export const useCoupon = async (userId: string, couponId: string): Promise<any> => {
+export const couponApi = async (userId: string, couponId: string): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}/user/${userId}/coupons/${couponId}/use`, {
     method: 'POST',
   });

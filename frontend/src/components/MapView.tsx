@@ -23,7 +23,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   useEffect(() => {
     if (!window.google && !document.querySelector('script[src*="maps.googleapis.com"]')) {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&callback=initMap`;
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);
