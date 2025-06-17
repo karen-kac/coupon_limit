@@ -19,10 +19,10 @@ function App() {
 
   useEffect(() => {
     getCurrentLocation();
-    // スプラッシュスクリーンを3秒後に非表示
+    // スプラッシュスクリーンを2.5秒後に非表示
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 3000);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -96,11 +96,23 @@ function App() {
 
   if (showSplash) {
     return (
-      <div className="splash-screen">
+      <div className="splash-screen custom-splash">
         <div className="splash-content">
-          <h1>🎟️ クーポンリミット</h1>
-          <p>あなたの街のクーポンを見つけよう</p>
-          <div className="loading-spinner">📍</div>
+          <h1 className="splash-title">Coupon Limit</h1>
+          <p className="splash-subtitle">📍 あなたの街のクーポンを見つけよう!</p>
+          <div className="splash-svg-area">
+            <img
+              src="/icon/splash-removebg-preview.png"
+              alt="Coupon Icon"
+              style={{
+                width: "380px",
+                maxWidth: "90vw",
+                height: "auto",
+                display: "block",
+                margin: "0 auto"
+              }}
+            />
+          </div>
         </div>
       </div>
     );

@@ -580,3 +580,62 @@ body {
     transform: translateY(0);
   }
 }
+
+/* --- Coupon Limit Splash Custom --- */
+.splash-screen.custom-splash {
+  background: #FFF9EC;
+}
+.splash-content {
+  color: #e6543a;
+}
+.splash-title {
+  font-size: 8.5rem !important;
+  font-weight: bold;
+  color: #e6543a;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+  margin-bottom: 0.9rem;
+  letter-spacing: 0.02em;
+}
+.splash-subtitle {
+  font-size: 2.7rem !important;
+  color: #222 !important;
+  font-weight: 700;
+  margin-bottom: 2.5rem;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.splash-svg-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2.5rem;
+}
+.splash-svg-area svg {
+  width: 480px;
+  height: auto;
+  max-width: 90vw;
+}
+@media (max-width: 700px) {
+  .splash-title {
+    font-size: 3.2rem !important;
+  }
+  .splash-subtitle {
+    font-size: 1.5rem !important;
+  }
+  .splash-svg-area svg {
+    width: 95vw;
+    height: auto;
+  }
+}
+@media (max-width: 480px) {
+  .splash-subtitle {
+    font-size: 1.1rem !important;
+  }
+}
+/* --- 既存のsplash-content, splash-screenの上書き用 --- */
+.splash-content h1, .splash-content p {
+  text-shadow: none;
+  color: inherit;
+}
