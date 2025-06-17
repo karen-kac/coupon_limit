@@ -130,8 +130,8 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1>クーポンリミット</h1>
-        <p className="app-description">近くのクーポンを探して、お得にショッピング</p>
+        <h1>COUPON LIMIT</h1>
+        <p className="app-description">近くのクーポンを探して、お得にショッピング！</p>
       </header>
 
       <nav className="bottom-nav">
