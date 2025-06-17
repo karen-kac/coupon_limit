@@ -612,7 +612,8 @@ body {
   align-items: center;
   margin-top: 2.5rem;
 }
-.splash-svg-area svg {
+.splash-svg-area svg,
+.splash-svg-area img {
   width: 480px;
   height: auto;
   max-width: 90vw;
