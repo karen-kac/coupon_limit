@@ -149,12 +149,12 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   return (
     <div className="map-view">
       <div ref={mapRef} className="map-container" style={{ width: '100%', height: '100%' }} />
-      <div className="map-info">
-        <p>🎯 周辺のクーポン: {coupons.length}件</p>
-        {coupons.some(c => c.distance_meters !== undefined && c.distance_meters <= 300) && (
+      {/* <div className="map-info"> */}
+        {/* <p>🎯 周辺のクーポン: {coupons.length}件</p> */}
+        {/* {coupons.some(c => c.distance_meters !== undefined && c.distance_meters <= 300) && (
           <p>✨ 取得可能なクーポンがあります！</p>
-        )}
-      </div>
+        )} */}
+      {/* </div> */}
     </div>
   );
 };
