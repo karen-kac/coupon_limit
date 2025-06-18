@@ -4,7 +4,7 @@ from datetime import datetime
 import uuid
 
 # Import database setup from supabase_client
-from supabase_client import Base, engine
+from supabase_client import Base, engine, SessionLocal
 
 # Production-Ready Database Models
 class User(Base):

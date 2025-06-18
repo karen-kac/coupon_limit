@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import MapView from './components/MapView';
 import MyPage from './components/MyPage';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
 import { getCoupons, getUserCoupons, getCoupon } from './services/api';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -21,6 +21,29 @@ function MainApp() {
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
 
+  const loadCoupons = useCallback(async () => {
+    if (!userLocation) return;
+    
+    try {
+      const data = await getCoupons(userLocation.lat, userLocation.lng);
+      setCoupons(data);
+    } catch (error) {
+      console.error('Error loading coupons:', error);
+      setError('Failed to load coupons');
+    }
+  }, [userLocation]);
+
+  const loadUserCoupons = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const data = await getUserCoupons();
+      setUserCoupons(data);
+    } catch (error) {
+      console.error('Error loading user coupons:', error);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     getCurrentLocation();
     // スプラッシュスクリーンを2.5秒後に非表示
@@ -35,7 +58,7 @@ function MainApp() {
       loadCoupons();
       loadUserCoupons();
     }
-  }, [userLocation]);
+  }, [userLocation, loadCoupons, loadUserCoupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -62,29 +85,6 @@ function MainApp() {
         setLoading(false);
       }
     );
-  };
-
-  const loadCoupons = async () => {
-    if (!userLocation) return;
-    
-    try {
-      const data = await getCoupons(userLocation.lat, userLocation.lng);
-      setCoupons(data);
-    } catch (error) {
-      console.error('Error loading coupons:', error);
-      setError('Failed to load coupons');
-    }
-  };
-
-  const loadUserCoupons = async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      const data = await getUserCoupons();
-      setUserCoupons(data);
-    } catch (error) {
-      console.error('Error loading user coupons:', error);
-    }
   };
 
   const handleGetCoupon = async (coupon: Coupon) => {

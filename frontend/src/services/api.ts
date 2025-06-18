@@ -37,16 +37,28 @@ const authFetch = async (url: string, options: RequestInit = {}): Promise<Respon
 };
 
 export const getCoupons = async (lat: number, lng: number, radius: number = 1000): Promise<Coupon[]> => {
-  const response = await authFetch(`${API_BASE_URL}/coupons?lat=${lat}&lng=${lng}&radius=${radius}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch coupons');
+  try {
+    console.log(`Fetching coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
+    const response = await authFetch(`${API_BASE_URL}/coupons?lat=${lat}&lng=${lng}&radius=${radius}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
+      throw new Error(`Failed to fetch coupons: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Received coupons:', data);
+    return data;
+  } catch (error) {
+    console.error('getCoupons error:', error);
+    throw error;
   }
-  return response.json();
 };
 
 export const getUserCoupons = async (userId?: string): Promise<UserCoupon[]> => {
   // If userId is not provided, backend will use authenticated user
-  const endpoint = userId ? `${API_BASE_URL}/user/${userId}/coupons` : `${API_BASE_URL}/user/me/coupons`;
+  const endpoint = `${API_BASE_URL}/user/coupons`;
   const response = await authFetch(endpoint);
   if (!response.ok) {
     throw new Error('Failed to fetch user coupons');
@@ -72,15 +84,9 @@ export const getCoupon = async (couponId: string, userLocation: Location, userId
   return response.json();
 };
 
-export const useCoupon = async (userId: string, couponId: string): Promise<any> => {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('token');
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  const response = await fetch(`${API_BASE_URL}/user/${userId}/coupons/${couponId}/use`, {
+export const applyCoupon = async (userId: string, couponId: string): Promise<any> => {
+  const response = await authFetch(`${API_BASE_URL}/user/${userId}/coupons/${couponId}/use`, {
     method: 'POST',
-    headers,
   });
   if (!response.ok) {
     const error = await response.json();
