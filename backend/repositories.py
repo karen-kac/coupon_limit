@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import uuid
-from backend.models import User, Store, Coupon, UserCoupon, Admin, GeoPoint, Reservation
+from models import User, Store, Coupon, UserCoupon, Admin, GeoPoint, Reservation
 from backend.auth import get_password_hash, verify_password
 
 class UserRepository:
