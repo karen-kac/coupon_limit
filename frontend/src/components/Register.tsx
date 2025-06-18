@@ -1,25 +1,30 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerUser } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const Register: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
+    setLoading(true);
+    
     try {
-      await registerUser(name, email, password);
-      setSuccess("登録が完了しました。ログインしてください。");
-      setTimeout(() => navigate("/login"), 1200);
+      const res = await registerUser(name, email, password);
+      login(res.access_token, res.user);
+      navigate("/");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "登録に失敗しました");
+      setError(err.message || "登録に失敗しました");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,8 +87,7 @@ const Register: React.FC = () => {
           </label>
         </div>
         {error && <div style={{ color: "#e6543a", marginBottom: 16, textAlign: "center", fontWeight: 700 }}>{error}</div>}
-        {success && <div style={{ color: "#4caf50", marginBottom: 16, textAlign: "center", fontWeight: 700 }}>{success}</div>}
-        <button type="submit" style={{
+        <button type="submit" disabled={loading} style={{
           width: "100%",
           padding: "12px 0",
           background: "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)",
@@ -96,9 +100,9 @@ const Register: React.FC = () => {
           cursor: "pointer",
           transition: "background 0.2s"
         }}
-        onMouseOver={e => (e.currentTarget.style.background = "linear-gradient(90deg, #ffb6b6 0%, #e6543a 100%)")}
-        onMouseOut={e => (e.currentTarget.style.background = "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)")}
-        >登録</button>
+        onMouseOver={e => !loading && (e.currentTarget.style.background = "linear-gradient(90deg, #ffb6b6 0%, #e6543a 100%)")}
+        onMouseOut={e => !loading && (e.currentTarget.style.background = "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)")}
+        >{loading ? "登録中..." : "登録"}</button>
       </form>
       <div style={{ marginTop: 24, textAlign: "center", fontSize: 15 }}>
         すでにアカウントをお持ちの方は <a href="/login" style={{ color: "#e6543a", fontWeight: 700, textDecoration: "underline dotted" }}>ログイン</a>

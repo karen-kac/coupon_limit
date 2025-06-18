@@ -1,22 +1,29 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
+    
     try {
       const res = await loginUser(email, password);
-      localStorage.setItem("token", res.access_token);
+      login(res.access_token, res.user);
       navigate("/");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "ログインに失敗しました");
+      setError(err.message || "ログインに失敗しました");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,7 +73,7 @@ const Login: React.FC = () => {
           </label>
         </div>
         {error && <div style={{ color: "#e6543a", marginBottom: 16, textAlign: "center", fontWeight: 700 }}>{error}</div>}
-        <button type="submit" style={{
+        <button type="submit" disabled={loading} style={{
           width: "100%",
           padding: "12px 0",
           background: "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)",
@@ -79,9 +86,9 @@ const Login: React.FC = () => {
           cursor: "pointer",
           transition: "background 0.2s"
         }}
-        onMouseOver={e => (e.currentTarget.style.background = "linear-gradient(90deg, #ffb6b6 0%, #e6543a 100%)")}
-        onMouseOut={e => (e.currentTarget.style.background = "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)")}
-        >ログイン</button>
+        onMouseOver={e => !loading && (e.currentTarget.style.background = "linear-gradient(90deg, #ffb6b6 0%, #e6543a 100%)")}
+        onMouseOut={e => !loading && (e.currentTarget.style.background = "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)")}
+        >{loading ? "ログイン中..." : "ログイン"}</button>
       </form>
       <div style={{ marginTop: 24, textAlign: "center", fontSize: 15 }}>
         アカウントをお持ちでない方は <a href="/register" style={{ color: "#e6543a", fontWeight: 700, textDecoration: "underline dotted" }}>新規登録</a>

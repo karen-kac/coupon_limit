@@ -1,15 +1,10 @@
-from sqlalchemy import create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
-import os
 
-# Database setup
-DATABASE_URL = os.getenv("MONGO_URL", "sqlite:///./coupon_app.db")
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# Import database setup from supabase_client
+from supabase_client import Base, engine
 
 # Production-Ready Database Models
 class User(Base):
@@ -129,10 +124,8 @@ class Reservation(Base):
     user = relationship("User", back_populates="reservations")
     store = relationship("Store", back_populates="reservations")
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
+# Note: Table creation and get_db function are handled in supabase_client.py
 
-# Dependency to get database session
 def get_db():
     db = SessionLocal()
     try:

@@ -5,17 +5,18 @@ import MyPage from './components/MyPage';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
 import { getCoupons, getUserCoupons, getCoupon } from './services/api';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 function MainApp() {
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('map');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [userId] = useState('user-' + Math.random().toString(36).substr(2, 9));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
@@ -76,8 +77,10 @@ function MainApp() {
   };
 
   const loadUserCoupons = async () => {
+    if (!isAuthenticated) return;
+    
     try {
-      const data = await getUserCoupons(userId);
+      const data = await getUserCoupons();
       setUserCoupons(data);
     } catch (error) {
       console.error('Error loading user coupons:', error);
@@ -85,10 +88,10 @@ function MainApp() {
   };
 
   const handleGetCoupon = async (coupon: Coupon) => {
-    if (!userLocation) return;
+    if (!userLocation || !isAuthenticated) return;
     
     try {
-      await getCoupon(coupon.id, userLocation, userId);
+      await getCoupon(coupon.id, userLocation);
       setSelectedCoupon(null);
       loadUserCoupons();
       loadCoupons();
@@ -121,13 +124,18 @@ function MainApp() {
     );
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">📍</div>
-        <p>位置情報を取得中...</p>
+        <p>{authLoading ? '認証確認中...' : '位置情報を取得中...'}</p>
       </div>
     );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
@@ -135,9 +143,24 @@ function MainApp() {
       <header className="app-header" style={{ position: 'relative' }}>
         <h1>COUPON LIMIT</h1>
         <p className="app-description">近くのクーポンを探して、お得にショッピング！</p>
-        <div style={{ position: 'absolute', top: 16, right: 16 }}>
-          <Link to="/login" style={{ marginRight: 12, textDecoration: 'none', color: '#1976d2', fontWeight: 'bold' }}>ログイン</Link>
-          <Link to="/register" style={{ textDecoration: 'none', color: '#1976d2', fontWeight: 'bold' }}>新規登録</Link>
+        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ color: '#1976d2', fontWeight: 'bold' }}>
+            こんにちは、{user?.name}さん
+          </span>
+          <button 
+            onClick={logout}
+            style={{ 
+              background: 'none', 
+              border: '1px solid #1976d2', 
+              color: '#1976d2', 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ログアウト
+          </button>
         </div>
       </header>
 
@@ -189,11 +212,13 @@ function MainApp() {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/*" element={<MainApp />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/*" element={<MainApp />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
