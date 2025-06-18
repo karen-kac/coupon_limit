@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 # Import new models and repositories
 from models import get_db, User, Store, Coupon, UserCoupon, Admin
-from backend.repositories import (
+from repositories import (
     UserRepository, StoreRepository, EnhancedCouponRepository, 
     EnhancedUserCouponRepository, AdminRepository, GeoPointRepository,
     user_to_dict, store_to_dict, coupon_to_dict, user_coupon_to_dict
