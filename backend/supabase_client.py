@@ -121,7 +121,7 @@ def check_supabase_connection() -> bool:
         client.table("users").select("id").limit(1).execute()
         return True
     except Exception as e:
-        print(f"Supabase connection failed: {e}")
+        logging.error(f"Supabase connection failed: {e}")
         return False
 
 # Database initialization function
