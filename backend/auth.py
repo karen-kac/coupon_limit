@@ -61,10 +61,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if payload is None:
         raise credentials_exception
     
-    email: str = payload.get("sub")
-    user_id: str = payload.get("user_id")
+    user_id: str = payload.get("sub")
+    user_type: str = payload.get("type", "user")
     
-    if email is None or user_id is None:
+    if user_id is None or user_type != "user":
         raise credentials_exception
     
     # Import here to avoid circular imports

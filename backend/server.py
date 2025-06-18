@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import math
 import uuid
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import new models and repositories
 from models import get_db, User, Store, Coupon, UserCoupon, Admin
@@ -23,9 +27,9 @@ app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly for production
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # 開発中は全てのオリジンを許可
+    allow_credentials=False,  # allow_origins=["*"]の場合はFalseにする必要がある
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -131,7 +135,7 @@ async def register_user(user_data: UserRegisterRequest, db: Session = Depends(ge
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "type": "user"}, 
+        data={"sub": str(user.id), "type": "user"}, 
         expires_delta=access_token_expires
     )
     
@@ -156,7 +160,7 @@ async def login_user(user_data: UserLoginRequest, db: Session = Depends(get_db))
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "type": "user"}, 
+        data={"sub": str(user.id), "type": "user"}, 
         expires_delta=access_token_expires
     )
     
@@ -167,6 +171,7 @@ async def login_user(user_data: UserLoginRequest, db: Session = Depends(get_db))
     )
 
 @app.post("/api/auth/admin/login", response_model=TokenResponse)
+@app.post("/api/admin/auth/login", response_model=TokenResponse)
 async def login_admin(admin_data: AdminLoginRequest, db: Session = Depends(get_db)):
     """Login admin or store owner"""
     admin_repo = AdminRepository(db)
@@ -181,7 +186,7 @@ async def login_admin(admin_data: AdminLoginRequest, db: Session = Depends(get_d
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": admin.id, "type": "admin"}, 
+        data={"sub": str(admin.id), "type": "admin"}, 
         expires_delta=access_token_expires
     )
     
@@ -189,14 +194,15 @@ async def login_admin(admin_data: AdminLoginRequest, db: Session = Depends(get_d
         access_token=access_token,
         token_type="bearer",
         admin={
-            "id": admin.id,
+            "id": str(admin.id),
             "email": admin.email,
             "role": admin.role,
-            "linked_store_id": admin.linked_store_id
+            "linked_store_id": str(admin.linked_store_id) if admin.linked_store_id else None
         }
     )
 
 @app.post("/api/auth/admin/register", response_model=TokenResponse)
+@app.post("/api/admin/auth/register", response_model=TokenResponse)
 async def register_admin(admin_data: AdminRegisterRequest, db: Session = Depends(get_db)):
     """Register a new admin or store owner"""
     admin_repo = AdminRepository(db)
@@ -244,7 +250,7 @@ async def register_admin(admin_data: AdminRegisterRequest, db: Session = Depends
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": admin.id, "type": "admin"}, 
+        data={"sub": str(admin.id), "type": "admin"}, 
         expires_delta=access_token_expires
     )
     
@@ -252,10 +258,10 @@ async def register_admin(admin_data: AdminRegisterRequest, db: Session = Depends
         access_token=access_token,
         token_type="bearer",
         admin={
-            "id": admin.id,
+            "id": str(admin.id),
             "email": admin.email,
             "role": admin.role,
-            "linked_store_id": admin.linked_store_id
+            "linked_store_id": str(admin.linked_store_id) if admin.linked_store_id else None
         }
     )
 
@@ -264,7 +270,18 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return user_to_dict(current_user)
 
+@app.get("/api/admin/auth/me")
+async def get_current_admin_info(current_admin: Admin = Depends(get_current_admin)):
+    """Get current admin information"""
+    return {
+        "id": str(current_admin.id),
+        "email": current_admin.email,
+        "role": current_admin.role,
+        "linked_store_id": str(current_admin.linked_store_id) if current_admin.linked_store_id else None
+    }
+
 @app.get("/api/auth/verify")
+@app.get("/api/admin/auth/verify")
 async def verify_token(
     current_user: Optional[User] = Depends(get_current_user_optional),
     current_admin: Optional[Admin] = Depends(get_current_admin_optional)
@@ -276,10 +293,10 @@ async def verify_token(
         return {
             "valid": True, 
             "admin": {
-                "id": current_admin.id,
+                "id": str(current_admin.id),
                 "email": current_admin.email,
                 "role": current_admin.role,
-                "linked_store_id": current_admin.linked_store_id
+                "linked_store_id": str(current_admin.linked_store_id) if current_admin.linked_store_id else None
             }
         }
     else:
@@ -287,6 +304,7 @@ async def verify_token(
 
 # Store management endpoints
 @app.post("/api/stores")
+@app.post("/api/admin/stores")
 async def create_store(
     store_data: StoreCreateRequest, 
     current_admin: Admin = Depends(get_current_admin),
@@ -311,14 +329,18 @@ async def create_store(
         "owner_email": owner_email
     })
     
-    # Link store to admin if they're a store owner
-    if current_admin.role == "store_owner" and not current_admin.linked_store_id:
+    # Link store to admin if they don't have one yet
+    if not current_admin.linked_store_id:
         current_admin.linked_store_id = store.id
         db.commit()
+        
+        # Refresh admin info for the response
+        db.refresh(current_admin)
     
     return {"message": "Store created successfully", "store": store_to_dict(store)}
 
 @app.get("/api/stores/my")
+@app.get("/api/admin/stores")
 async def get_my_stores(
     current_admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
@@ -534,12 +556,12 @@ async def use_coupon(
 
 # Store owner coupon management
 @app.post("/api/store/coupons")
-async def create_store_coupon(
+async def create_store_coupon_legacy(
     coupon_data: CouponCreateRequest,
     current_admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a coupon for store owner's store"""
+    """Create a coupon for store owner's store (legacy endpoint)"""
     if current_admin.role != "store_owner" or not current_admin.linked_store_id:
         raise HTTPException(status_code=403, detail="Store owner access required")
     
@@ -557,7 +579,35 @@ async def create_store_coupon(
     
     return {"message": "Coupon created successfully", "coupon": coupon_to_dict(coupon)}
 
+@app.post("/api/admin/coupons")
+async def create_admin_coupon(
+    coupon_data: CouponCreateRequest,
+    current_admin: Admin = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a coupon for admin's associated store"""
+    # 管理者の関連店舗IDを取得
+    store_id = current_admin.linked_store_id
+    
+    if not store_id:
+        raise HTTPException(status_code=400, detail="管理者に関連付けられた店舗がありません。先に店舗を作成してください。")
+    
+    coupon_repo = EnhancedCouponRepository(db)
+    
+    coupon = coupon_repo.create_coupon({
+        "store_id": store_id,
+        "title": coupon_data.title,
+        "description": coupon_data.description,
+        "discount_rate_initial": coupon_data.discount_rate_initial,
+        "discount_rate_schedule": coupon_data.discount_rate_schedule or [],
+        "start_time": coupon_data.start_time,
+        "end_time": coupon_data.end_time
+    })
+    
+    return {"message": "Coupon created successfully", "coupon": coupon_to_dict(coupon)}
+
 @app.get("/api/store/coupons")
+@app.get("/api/admin/coupons")
 async def get_store_coupons(
     current_admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)

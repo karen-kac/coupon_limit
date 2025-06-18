@@ -634,6 +634,12 @@ class AdminApp {
 
     // Modal management
     showCreateCouponModal() {
+        // Check if admin has a linked store
+        if (!this.admin.linked_store_id) {
+            alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
+            return;
+        }
+        
         this.initializeDefaultTimes();
         this.renderDiscountSchedule();
         document.getElementById('create-coupon-modal').style.display = 'flex';
@@ -758,8 +764,17 @@ class AdminApp {
     }
 
     getCouponFormData() {
+        // 店舗オーナーの場合は自分の店舗ID、スーパー管理者の場合はフォームから選択
+        let storeId = null;
+        if (this.admin.role === 'store_owner') {
+            storeId = this.admin.linked_store_id;
+        } else {
+            // スーパー管理者の場合は店舗選択フィールドから取得（将来の実装用）
+            storeId = this.store?.id || this.admin.linked_store_id;
+        }
+
         return {
-            store_id: this.store?.id || '',
+            store_id: storeId,
             title: document.getElementById('coupon-title').value,
             description: document.getElementById('coupon-description').value,
             discount_rate_initial: parseInt(document.getElementById('discount-initial').value),
@@ -852,8 +867,25 @@ class AdminApp {
             return;
         }
 
-        // Note: This would require Google Maps API key
-        alert('Geocoding機能は実装中です。現在は手動で緯度経度を入力してください。');
+        try {
+            // Nominatim API (OpenStreetMap) を使用して無料でジオコーディング
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=jp&limit=1`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const result = data[0];
+                document.getElementById('store-latitude').value = parseFloat(result.lat).toFixed(6);
+                document.getElementById('store-longitude').value = parseFloat(result.lon).toFixed(6);
+                alert(`住所から緯度経度を取得しました！\n緯度: ${result.lat}\n経度: ${result.lon}`);
+            } else {
+                alert('住所から緯度経度を取得できませんでした。手動で入力してください。');
+            }
+        } catch (error) {
+            console.error('Geocoding error:', error);
+            alert('住所の検索中にエラーが発生しました。手動で緯度経度を入力してください。');
+        }
     }
 
     getCurrentLocation() {
