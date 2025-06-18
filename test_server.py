@@ -194,8 +194,11 @@ async def get_coupons(lat: float, lng: float, radius: int = 1000, authorization:
     return coupons
 
 @app.get("/api/user/coupons")
-async def get_user_coupons(authorization: str = Depends(lambda x: x.headers.get("Authorization"))):
-    token = get_token_from_header(authorization)
+async def get_user_coupons(authorization: Optional[str] = None):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    token = authorization.replace("Bearer ", "")
     
     user_id = None
     for uid, user_token in tokens.items():
