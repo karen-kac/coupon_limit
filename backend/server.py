@@ -15,9 +15,10 @@ from repositories import (
     user_to_dict, store_to_dict, coupon_to_dict, user_coupon_to_dict
 )
 from auth import (
-    create_access_token, get_current_user, get_current_admin, 
+    create_access_token, get_current_user, get_current_admin,
     get_current_user_optional, get_current_admin_optional, ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from supabase_client import check_database_connection, check_supabase_connection
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
@@ -611,8 +612,16 @@ async def get_admin_stats(
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now(), "version": "2.0"}
+    """Health check endpoint with Supabase status"""
+    db_ok = check_database_connection()
+    supabase_ok = check_supabase_connection()
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(),
+        "version": "2.0",
+        "database": db_ok,
+        "supabase": supabase_ok,
+    }
 
 # Startup event - Create sample data for demo
 @app.on_event("startup")

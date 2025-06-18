@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
 import psycopg2
 from urllib.parse import urlparse
+from supabase import create_client, Client
 
 # Environment-based database configuration
 def get_database_url() -> str:
@@ -102,6 +103,26 @@ class SupabaseConfig:
 
 # Global Supabase config instance
 supabase_config = SupabaseConfig()
+
+# Supabase client helper
+def get_supabase_client() -> Client:
+    """Create and return a Supabase client instance"""
+    if not supabase_config.url:
+        raise ValueError("SUPABASE_URL is not configured")
+    api_key = supabase_config.service_role_key or supabase_config.anon_key
+    if not api_key:
+        raise ValueError("Supabase API key is not configured")
+    return create_client(supabase_config.url, api_key)
+
+def check_supabase_connection() -> bool:
+    """Check whether Supabase API is reachable"""
+    try:
+        client = get_supabase_client()
+        client.table("users").select("id").limit(1).execute()
+        return True
+    except Exception as e:
+        print(f"Supabase connection failed: {e}")
+        return False
 
 # Database initialization function
 def init_database():
@@ -212,5 +233,7 @@ __all__ = [
     'get_db',
     'supabase_config',
     'init_database',
-    'check_database_connection'
+    'check_database_connection',
+    'get_supabase_client',
+    'check_supabase_connection'
 ]
