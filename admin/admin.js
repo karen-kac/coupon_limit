@@ -95,6 +95,24 @@ class AdminApp {
         }
     }
 
+    async refreshAdminInfo() {
+        try {
+            const adminResponse = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/auth/me`);
+            if (adminResponse.ok) {
+                this.admin = await adminResponse.json();
+                console.log('Admin info refreshed:', this.admin); // デバッグ用
+                
+                if (this.admin.role === 'store_owner') {
+                    await this.loadStoreInfo();
+                }
+                
+                this.updateUserInfo();
+            }
+        } catch (error) {
+            console.error('Failed to refresh admin info:', error);
+        }
+    }
+
     showLoginScreen() {
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('register-screen').style.display = 'none';
@@ -132,6 +150,12 @@ class AdminApp {
         // Show store management for super admin
         if (this.admin.role === 'super_admin') {
             document.getElementById('stores-nav').style.display = 'block';
+            // 初回ログイン時に店舗一覧を読み込み
+            if (!this.stores) {
+                this.loadStores();
+            }
+        } else {
+            document.getElementById('stores-nav').style.display = 'none';
         }
     }
 
@@ -187,12 +211,12 @@ class AdminApp {
         });
 
         // Quick actions
-        document.getElementById('quick-create-coupon').addEventListener('click', () => {
-            this.showCreateCouponModal();
+        document.getElementById('quick-create-coupon').addEventListener('click', async () => {
+            await this.showCreateCouponModal();
         });
 
-        document.getElementById('create-coupon-btn').addEventListener('click', () => {
-            this.showCreateCouponModal();
+        document.getElementById('create-coupon-btn').addEventListener('click', async () => {
+            await this.showCreateCouponModal();
         });
 
         document.getElementById('create-store-btn').addEventListener('click', () => {
@@ -633,12 +657,32 @@ class AdminApp {
     }
 
     // Modal management
-    showCreateCouponModal() {
-        // Check if admin has a linked store
-        if (!this.admin.linked_store_id) {
-            alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
-            return;
+    async showCreateCouponModal() {
+        // 最新の管理者情報を取得
+        await this.refreshAdminInfo();
+        
+        // スーパー管理者の場合は利用可能な店舗をチェック
+        if (this.admin.role === 'super_admin') {
+            // 利用可能な店舗があるかチェック
+            if (!this.stores || this.stores.length === 0) {
+                await this.loadStores(); // 店舗一覧を再読み込み
+            }
+            
+            if (!this.stores || this.stores.length === 0) {
+                alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
+                return;
+            }
+        } else {
+            // 店舗オーナーの場合は自分の店舗をチェック
+            if (!this.admin.linked_store_id && !this.store) {
+                alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
+                return;
+            }
         }
+        
+        console.log('Creating coupon for admin:', this.admin); // デバッグ用
+        console.log('Store info:', this.store); // デバッグ用
+        console.log('Available stores:', this.stores); // デバッグ用
         
         this.initializeDefaultTimes();
         this.renderDiscountSchedule();
@@ -720,24 +764,47 @@ class AdminApp {
 
     // Form handlers
     async handleCreateCoupon() {
-        const formData = this.getCouponFormData();
-        
         try {
+            const formData = this.getCouponFormData();
+            console.log('Sending coupon data:', formData); // デバッグ用
+            
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons`, {
                 method: 'POST',
                 body: JSON.stringify(formData)
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'クーポンの作成に失敗しました');
+                let errorMessage = 'クーポンの作成に失敗しました';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                    console.error('Server error:', errorData); // デバッグ用
+                } catch (jsonError) {
+                    console.error('Failed to parse error response:', jsonError);
+                    errorMessage = `サーバーエラー (${response.status}): ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
             }
+
+            const result = await response.json();
+            console.log('Coupon created successfully:', result); // デバッグ用
 
             this.hideCreateCouponModal();
             this.loadCoupons();
             alert('クーポンを作成しました！');
         } catch (error) {
-            alert(error.message);
+            console.error('Coupon creation error:', error); // デバッグ用
+            let errorMessage = '予期しないエラーが発生しました';
+            
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else {
+                errorMessage = 'ネットワークエラーまたは接続問題が発生しました';
+            }
+            
+            alert(errorMessage);
         }
     }
 
@@ -767,6 +834,9 @@ class AdminApp {
             const result = await response.json();
             console.log('Store created successfully:', result); // デバッグ用
             
+            // 管理者情報を再取得して更新
+            await this.refreshAdminInfo();
+            
             this.hideCreateStoreModal();
             this.loadStores();
             alert('店舗を作成しました！');
@@ -787,13 +857,23 @@ class AdminApp {
     }
 
     getCouponFormData() {
-        // 店舗オーナーの場合は自分の店舗ID、スーパー管理者の場合はフォームから選択
+        // 店舗オーナーの場合は自分の店舗ID、スーパー管理者の場合は最初の利用可能な店舗
         let storeId = null;
         if (this.admin.role === 'store_owner') {
-            storeId = this.admin.linked_store_id;
-        } else {
-            // スーパー管理者の場合は店舗選択フィールドから取得（将来の実装用）
-            storeId = this.store?.id || this.admin.linked_store_id;
+            storeId = this.admin.linked_store_id || this.store?.id;
+        } else if (this.admin.role === 'super_admin') {
+            // スーパー管理者の場合は最初の利用可能な店舗を使用
+            if (this.stores && this.stores.length > 0) {
+                storeId = this.stores[0].id;
+            }
+        }
+
+        console.log('Getting coupon form data - storeId:', storeId); // デバッグ用
+        console.log('Admin role:', this.admin.role); // デバッグ用
+        console.log('Available stores:', this.stores); // デバッグ用
+
+        if (!storeId) {
+            throw new Error('店舗IDが見つかりません。店舗を作成してからクーポンを作成してください。');
         }
 
         return {
@@ -888,7 +968,7 @@ class AdminApp {
     }
 
     // Coupon actions
-    duplicateCoupon(couponId) {
+    async duplicateCoupon(couponId) {
         const coupon = this.coupons.find(c => c.id === couponId);
         if (!coupon) return;
 
@@ -901,7 +981,7 @@ class AdminApp {
         document.getElementById('start-time').value = now.toISOString().slice(0, 16);
         document.getElementById('end-time').value = defaultEnd.toISOString().slice(0, 16);
 
-        this.showCreateCouponModal();
+        await this.showCreateCouponModal();
     }
 
     async deleteCoupon(couponId) {

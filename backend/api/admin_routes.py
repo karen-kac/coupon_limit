@@ -273,6 +273,7 @@ async def get_current_admin_user_info(current_admin: Admin = Depends(get_current
         is_active=current_admin.is_active
     )
 
+@router.get("/auth/verify")
 @router.post("/auth/verify")
 async def verify_admin_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verify if the provided admin token is valid"""
