@@ -14,7 +14,7 @@ from backend.repositories import (
     EnhancedUserCouponRepository, AdminRepository, GeoPointRepository,
     user_to_dict, store_to_dict, coupon_to_dict, user_coupon_to_dict
 )
-from auth import (
+from backend.auth import (
     create_access_token, get_current_user, get_current_admin, 
     get_current_user_optional, ACCESS_TOKEN_EXPIRE_MINUTES
 )
