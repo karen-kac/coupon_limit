@@ -8,3 +8,28 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# DBファイル
+coupon_app.db
+backend/coupon_app.db
+
+# Pythonキャッシュ
+__pycache__/
+backend/__pycache__/
+*.pyc
+
+# Node.js
+node_modules/
+frontend/node_modules/
+
+# ログ・一時ファイル
+*.log
+
+# 環境変数ファイル
+.env
+*.env
+
+# その他
+.DS_Store
+venv/

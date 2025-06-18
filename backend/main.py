@@ -10,6 +10,10 @@ from database import (
     get_db, CouponRepository, UserCouponRepository,
     db_coupon_to_dict, db_user_coupon_to_dict
 )
+from auth import get_password_hash, verify_password, create_access_token, get_current_user
+from models import User
+from fastapi import status
+from jose import JWTError
 
 app = FastAPI(title="Coupon Location API")
 
@@ -430,6 +434,53 @@ async def get_admin_stats(db: Session = Depends(get_db)):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now()}
+
+# --- ユーザー認証用Pydanticモデル ---
+class UserRegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+# --- ユーザー登録エンドポイント ---
+@app.post("/api/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)):
+    # 既存ユーザー確認
+    if db.query(User).filter(User.email == request.email).first():
+        raise HTTPException(status_code=400, detail="このメールアドレスは既に登録されています")
+    hashed_pw = get_password_hash(request.password)
+    user = User(name=request.name, email=request.email, password_hash=hashed_pw)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"message": "ユーザー登録が完了しました"}
+
+# --- ログインエンドポイント ---
+@app.post("/api/login", response_model=TokenResponse)
+def login_user(request: UserLoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user or not verify_password(request.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが正しくありません")
+    access_token = create_access_token(data={"sub": user.id, "type": "user"})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# --- 認証付きユーザー情報取得エンドポイント ---
+@app.get("/api/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "created_at": current_user.created_at,
+        "updated_at": current_user.updated_at
+    }
 
 if __name__ == "__main__":
     import uvicorn

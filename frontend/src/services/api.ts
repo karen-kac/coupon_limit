@@ -51,3 +51,31 @@ export const couponApi = async (userId: string, couponId: string): Promise<any> 
   
   return response.json();
 };
+
+// ユーザーログイン
+export const loginUser = async (email: string, password: string): Promise<{ access_token: string }> => {
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'ログインに失敗しました');
+  }
+  return response.json();
+};
+
+// ユーザー新規登録
+export const registerUser = async (name: string, email: string, password: string): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password })
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || '登録に失敗しました');
+  }
+  return response.json();
+};

@@ -5,8 +5,11 @@ import MyPage from './components/MyPage';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
 import { getCoupons, getUserCoupons, getCoupon } from './services/api';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import Login from './components/Login';
+import Register from './components/Register';
 
-function App() {
+function MainApp() {
   const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('map');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -129,9 +132,13 @@ function App() {
 
   return (
     <div className="App">
-      <header className="app-header">
+      <header className="app-header" style={{ position: 'relative' }}>
         <h1>COUPON LIMIT</h1>
         <p className="app-description">近くのクーポンを探して、お得にショッピング！</p>
+        <div style={{ position: 'absolute', top: 16, right: 16 }}>
+          <Link to="/login" style={{ marginRight: 12, textDecoration: 'none', color: '#1976d2', fontWeight: 'bold' }}>ログイン</Link>
+          <Link to="/register" style={{ textDecoration: 'none', color: '#1976d2', fontWeight: 'bold' }}>新規登録</Link>
+        </div>
       </header>
 
       <nav className="bottom-nav">
@@ -176,6 +183,18 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
