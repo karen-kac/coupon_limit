@@ -16,7 +16,7 @@ from repositories import (
 )
 from auth import (
     create_access_token, get_current_user, get_current_admin, 
-    get_current_user_optional, ACCESS_TOKEN_EXPIRE_MINUTES
+    get_current_user_optional, get_current_admin_optional, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
@@ -42,6 +42,13 @@ class UserLoginRequest(BaseModel):
 class AdminLoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+class AdminRegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    role: str
+    linked_store_id: Optional[str] = None
+    registration_code: Optional[str] = None
 
 class StoreCreateRequest(BaseModel):
     name: str
@@ -189,10 +196,94 @@ async def login_admin(admin_data: AdminLoginRequest, db: Session = Depends(get_d
         }
     )
 
+@app.post("/api/auth/admin/register", response_model=TokenResponse)
+async def register_admin(admin_data: AdminRegisterRequest, db: Session = Depends(get_db)):
+    """Register a new admin or store owner"""
+    admin_repo = AdminRepository(db)
+    
+    # Check if admin already exists
+    if admin_repo.get_admin_by_email(admin_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Validate role
+    if admin_data.role not in ["store_owner", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role"
+        )
+    
+    # For super admin, require registration code
+    if admin_data.role == "super_admin":
+        if admin_data.registration_code != "SUPER_ADMIN_2024":  # Change this to your secret code
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid registration code"
+            )
+    
+    # For store owner, validate store
+    if admin_data.role == "store_owner" and admin_data.linked_store_id:
+        store_repo = StoreRepository(db)
+        store = store_repo.get_store_by_id(admin_data.linked_store_id)
+        if not store:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid store"
+            )
+    
+    # Create admin
+    admin = admin_repo.create_admin({
+        "email": admin_data.email,
+        "password": admin_data.password,
+        "role": admin_data.role,
+        "linked_store_id": admin_data.linked_store_id
+    })
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": admin.id, "type": "admin"}, 
+        expires_delta=access_token_expires
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        admin={
+            "id": admin.id,
+            "email": admin.email,
+            "role": admin.role,
+            "linked_store_id": admin.linked_store_id
+        }
+    )
+
 @app.get("/api/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return user_to_dict(current_user)
+
+@app.get("/api/auth/verify")
+async def verify_token(
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_admin: Optional[Admin] = Depends(get_current_admin_optional)
+):
+    """Verify if the token is valid"""
+    if current_user:
+        return {"valid": True, "user": user_to_dict(current_user)}
+    elif current_admin:
+        return {
+            "valid": True, 
+            "admin": {
+                "id": current_admin.id,
+                "email": current_admin.email,
+                "role": current_admin.role,
+                "linked_store_id": current_admin.linked_store_id
+            }
+        }
+    else:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 # Store management endpoints
 @app.post("/api/stores")
@@ -236,6 +327,21 @@ async def get_my_stores(
     store_repo = StoreRepository(db)
     stores = store_repo.get_stores_by_owner(current_admin.email)
     return [store_to_dict(store) for store in stores]
+
+@app.get("/api/stores/public")
+async def get_public_stores(db: Session = Depends(get_db)):
+    """Get all active stores for public registration"""
+    store_repo = StoreRepository(db)
+    try:
+        stores = store_repo.get_all_active_stores()
+        return [{"id": store.id, "name": store.name} for store in stores]
+    except Exception as e:
+        # Return sample stores if database fails
+        return [
+            {"id": "1", "name": "東京駅コーヒーショップ"},
+            {"id": "2", "name": "銀座レストラン"},
+            {"id": "3", "name": "新宿書店"}
+        ]
 
 # Enhanced coupon endpoints
 @app.get("/api/coupons")
@@ -526,38 +632,55 @@ async def startup_event():
         if len(existing_stores) > 0:
             return  # Already have data
         
-        # Create sample admin/store owner
-        sample_admin = admin_repo.create_admin({
-            "email": "store@example.com",
-            "password": "password123",
-            "role": "store_owner"
-        })
+        # Create sample admins/store owners for demo accounts
+        demo_admins = [
+            {
+                "email": "coffee@example.com",
+                "password": "store1123",
+                "role": "store_owner"
+            },
+            {
+                "email": "restaurant@example.com", 
+                "password": "store2123",
+                "role": "store_owner"
+            },
+            {
+                "email": "bookstore@example.com",
+                "password": "store3123", 
+                "role": "store_owner"
+            }
+        ]
+        
+        created_admins = []
+        for admin_data in demo_admins:
+            admin = admin_repo.create_admin(admin_data)
+            created_admins.append(admin)
         
         # Create sample stores
         sample_stores = [
             {
-                "name": "コーヒーショップ",
+                "name": "東京駅コーヒーショップ",
                 "description": "美味しいコーヒーと軽食を提供しています",
                 "latitude": 35.6812,
                 "longitude": 139.7671,
                 "address": "東京駅周辺",
-                "owner_email": "store@example.com"
+                "owner_email": "coffee@example.com"
             },
             {
-                "name": "レストラン",
+                "name": "銀座レストラン",
                 "description": "本格的な日本料理レストラン",
                 "latitude": 35.6815,
                 "longitude": 139.7675,
-                "address": "東京駅周辺",
-                "owner_email": "store@example.com"
+                "address": "銀座周辺",
+                "owner_email": "restaurant@example.com"
             },
             {
-                "name": "書店",
+                "name": "新宿書店",
                 "description": "本と文房具の専門店",
                 "latitude": 35.6810,
                 "longitude": 139.7665,
-                "address": "東京駅周辺",
-                "owner_email": "store@example.com"
+                "address": "新宿周辺",
+                "owner_email": "bookstore@example.com"
             }
         ]
         
@@ -566,8 +689,10 @@ async def startup_event():
             store = store_repo.create_store(store_data)
             created_stores.append(store)
         
-        # Link first store to admin
-        sample_admin.linked_store_id = created_stores[0].id
+        # Link each admin to their respective store
+        for i, admin in enumerate(created_admins):
+            if i < len(created_stores):
+                admin.linked_store_id = created_stores[i].id
         db.commit()
         
         # Create sample coupons

@@ -133,3 +133,29 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
     
     except Exception:
         return None
+
+def get_current_admin_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)), db: Session = Depends(get_db)) -> Optional[Admin]:
+    """Get current admin if authenticated, None otherwise"""
+    if not credentials:
+        return None
+    
+    try:
+        token = credentials.credentials
+        payload = verify_token(token)
+        
+        if payload is None:
+            return None
+        
+        admin_id: str = payload.get("sub")
+        user_type: str = payload.get("type")
+        
+        if admin_id is None or user_type != "admin":
+            return None
+        
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.is_active:
+            return admin
+        return None
+    
+    except Exception:
+        return None

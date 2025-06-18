@@ -89,6 +89,10 @@ class StoreRepository:
         """Get all active stores"""
         return self.db.query(Store).filter(Store.is_active == True).all()
     
+    def get_all_active_stores(self) -> List[Store]:
+        """Get all active stores (alias for compatibility)"""
+        return self.get_all_stores()
+    
     def update_store(self, store_id: str, update_data: dict) -> Optional[Store]:
         """Update store information"""
         store = self.get_store_by_id(store_id)

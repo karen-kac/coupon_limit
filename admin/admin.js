@@ -834,7 +834,7 @@ class AdminApp {
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons/${couponId}`, {
                 method: 'DELETE'
             });
-
+            
             if (!response.ok) throw new Error('クーポンの削除に失敗しました');
 
             this.loadCoupons();
