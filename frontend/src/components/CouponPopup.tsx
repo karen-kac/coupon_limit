@@ -79,7 +79,7 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
         </button>
         
         <div className="popup-header">
-          <h3>{coupon.shop_name}</h3>
+          <h3>{coupon.store_name || coupon.shop_name}</h3>
           {distance !== null && (
             <span className={`distance ${isNearby ? 'nearby' : 'far'}`}>
               {distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`}

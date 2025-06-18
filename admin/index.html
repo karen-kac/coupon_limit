@@ -3,190 +3,395 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クーポン管理画面</title>
+    <title>クーポン管理システム</title>
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-    <div id="admin-app">
-        <header class="header">
-            <h1>クーポン管理システム</h1>
-            <nav class="nav">
-                <button id="dashboard-tab" class="nav-btn active">ダッシュボード</button>
-                <button id="coupons-tab" class="nav-btn">クーポン管理</button>
-                <button id="create-tab" class="nav-btn">新規作成</button>
-            </nav>
-        </header>
-
-        <main class="main-content">
-            <!-- Dashboard View -->
-            <div id="dashboard-view" class="view active">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h3>総クーポン数</h3>
-                        <div class="stat-number" id="total-coupons">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>アクティブ</h3>
-                        <div class="stat-number" id="active-coupons">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>期限切れ</h3>
-                        <div class="stat-number" id="expired-coupons">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>取得数</h3>
-                        <div class="stat-number" id="total-obtained">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>使用数</h3>
-                        <div class="stat-number" id="total-used">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>使用率</h3>
-                        <div class="stat-number" id="usage-rate">0%</div>
-                    </div>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>🎫 クーポン管理システム</h1>
+                <p>店舗管理者ログイン</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-email">メールアドレス</label>
+                    <input type="email" id="login-email" required placeholder="admin@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password">パスワード</label>
+                    <input type="password" id="login-password" required placeholder="パスワードを入力">
+                </div>
+                
+                <div id="login-error" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" id="login-btn" class="login-button">
+                    ログイン
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>店舗オーナー様、スーパー管理者専用画面です</p>
+                <div class="auth-switch">
+                    <button type="button" id="show-register" class="link-button">
+                        アカウントをお持ちでない方はこちら
+                    </button>
+                </div>
+                <div class="demo-credentials">
+                    <small>
+                        デモ用アカウント:<br/>
+                        coffee@example.com / store1123<br/>
+                        restaurant@example.com / store2123<br/>
+                        bookstore@example.com / store3123
+                    </small>
                 </div>
             </div>
-
-            <!-- Coupons Management View -->
-            <div id="coupons-view" class="view">
-                <div class="view-header">
-                    <h2>クーポン一覧</h2>
-                    <button id="refresh-coupons" class="btn btn-secondary">🔄 更新</button>
-                </div>
-                <div class="table-container">
-                    <table id="coupons-table">
-                        <thead>
-                            <tr>
-                                <th>店舗名</th>
-                                <th>タイトル</th>
-                                <th>割引率</th>
-                                <th>作成日</th>
-                                <th>期限</th>
-                                <th>ステータス</th>
-                                <th>取得数</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="coupons-tbody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Create Coupon View -->
-            <div id="create-view" class="view">
-                <div class="view-header">
-                    <h2>新規クーポン作成</h2>
-                </div>
-                <form id="create-coupon-form" class="form">
-                    <div class="form-group">
-                        <label for="shop-name">店舗名</label>
-                        <input type="text" id="shop-name" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="coupon-title">クーポンタイトル</label>
-                        <input type="text" id="coupon-title" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="base-discount">基本割引率 (%)</label>
-                        <input type="number" id="base-discount" min="1" max="100" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="expires-minutes">有効期限 (分)</label>
-                        <input type="number" id="expires-minutes" min="1" value="60" required>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="latitude">緯度</label>
-                            <input type="number" id="latitude" step="any" value="35.6812" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="longitude">経度</label>
-                            <input type="number" id="longitude" step="any" value="139.7671" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="conditions">対象商品・条件</label>
-                        <textarea id="conditions" rows="3" placeholder="例：全商品対象、1000円以上のご購入で..."></textarea>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">クーポンを作成</button>
-                        <button type="button" id="reset-form" class="btn btn-secondary">リセット</button>
-                    </div>
-                </form>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div id="edit-modal" class="modal">
+    <!-- Registration Screen -->
+    <div id="register-screen" class="login-screen" style="display: none;">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>🎫 管理者登録</h1>
+                <p>新しい管理者アカウントを作成</p>
+            </div>
+            
+            <form id="register-form" class="login-form">
+                <div class="form-group">
+                    <label for="register-email">メールアドレス</label>
+                    <input type="email" id="register-email" required placeholder="admin@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-password">パスワード</label>
+                    <input type="password" id="register-password" required placeholder="パスワードを入力">
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-role">権限</label>
+                    <select id="register-role" required>
+                        <option value="store_owner">店舗オーナー</option>
+                        <option value="super_admin">スーパー管理者</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="store-selection-group" style="display: none;">
+                    <label for="register-store">関連店舗</label>
+                    <select id="register-store">
+                        <option value="">店舗を選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="registration-code-group" style="display: none;">
+                    <label for="register-code">登録コード</label>
+                    <input type="text" id="register-code" placeholder="スーパー管理者登録コードを入力">
+                    <small>スーパー管理者権限には特別な登録コードが必要です</small>
+                </div>
+                
+                <div id="register-error" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" id="register-btn" class="login-button">
+                    アカウント作成
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <div class="auth-switch">
+                    <button type="button" id="show-login" class="link-button">
+                        既にアカウントをお持ちの方はこちら
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Admin App -->
+    <div id="admin-app" style="display: none;">
+        <header class="admin-header">
+            <div class="admin-header-content">
+                <div class="admin-logo">
+                    <h1>🎫 クーポン管理</h1>
+                                            <span id="current-store-name" class="store-name"></span>
+                </div>
+                
+                <div class="admin-user-info">
+                    <span id="admin-email" class="admin-email"></span>
+                    <span id="admin-role" class="admin-role"></span>
+                    <button id="logout-btn" class="logout-button">ログアウト</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="admin-main">
+            <nav class="admin-sidebar">
+                <ul class="admin-nav-list">
+                    <li>
+                        <a href="#" id="dashboard-tab" class="admin-nav-item active">
+                            📊 ダッシュボード
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="coupons-tab" class="admin-nav-item">
+                            🎫 クーポン管理
+                        </a>
+                    </li>
+                    <li id="stores-nav" style="display: none;">
+                        <a href="#" id="stores-tab" class="admin-nav-item">
+                            🏪 店舗管理
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <main class="admin-content">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <div class="dashboard-header">
+                        <h1>ダッシュボード</h1>
+                        <p id="welcome-message">ようこそ</p>
+                    </div>
+
+                    <div id="dashboard-error" class="error-banner" style="display: none;"></div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">🏪</div>
+                            <div class="stat-content">
+                                <h3>総店舗数</h3>
+                                <div class="stat-number" id="total-stores">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎫</div>
+                            <div class="stat-content">
+                                <h3>総クーポン数</h3>
+                                <div class="stat-number" id="total-coupons">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <h3>アクティブ</h3>
+                                <div class="stat-number" id="active-coupons">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-content">
+                                <h3>総ユーザー数</h3>
+                                <div class="stat-number" id="total-users">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-content">
+                                <h3>今日の取得数</h3>
+                                <div class="stat-number" id="coupons-obtained-today">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-sections">
+                        <div class="recent-activity-section">
+                            <h2>最近のアクティビティ</h2>
+                            <div id="activity-list" class="activity-list">
+                                <p class="no-activity">アクティビティがありません</p>
+                            </div>
+                        </div>
+
+                        <div class="quick-actions-section">
+                            <h2>クイックアクション</h2>
+                            <div class="quick-actions">
+                                <button id="quick-create-coupon" class="quick-action-btn primary">
+                                    ➕ 新しいクーポンを作成
+                                </button>
+                                <button class="quick-action-btn">
+                                    📊 詳細レポートを表示
+                                </button>
+                                <button class="quick-action-btn">
+                                    🔔 通知設定
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coupons Management View -->
+                <div id="coupons-view" class="view">
+                    <div class="coupon-header">
+                        <h1>クーポン管理</h1>
+                        <button id="create-coupon-btn" class="create-coupon-btn">
+                            ➕ 新しいクーポンを作成
+                        </button>
+                    </div>
+
+                    <div id="coupons-error" class="error-banner" style="display: none;"></div>
+
+                    <div id="coupons-grid" class="coupons-grid">
+                        <!-- Coupons will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Store Management View (Super Admin only) -->
+                <div id="stores-view" class="view">
+                    <div class="store-header">
+                        <h1>店舗管理</h1>
+                        <button id="create-store-btn" class="create-store-btn">
+                            ➕ 新しい店舗を追加
+                        </button>
+                    </div>
+
+                    <div id="stores-error" class="error-banner" style="display: none;"></div>
+
+                    <div id="stores-grid" class="stores-grid">
+                        <!-- Stores will be populated here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Coupon Modal -->
+    <div id="create-coupon-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>クーポン編集</h3>
-                <button class="close-btn" id="close-edit-modal">&times;</button>
+                <h2>新しいクーポンを作成</h2>
+                <button id="close-create-coupon" class="close-btn">✕</button>
             </div>
-            <form id="edit-coupon-form" class="form">
-                <input type="hidden" id="edit-coupon-id">
-                
-                <div class="form-group">
-                    <label for="edit-shop-name">店舗名</label>
-                    <input type="text" id="edit-shop-name" required>
+
+            <form id="create-coupon-form">
+                <div class="form-group" id="store-select-group" style="display: none;">
+                    <label for="coupon-store">対象店舗 *</label>
+                    <select id="coupon-store" required>
+                        <option value="">店舗を選択してください</option>
+                    </select>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="edit-coupon-title">クーポンタイトル</label>
-                    <input type="text" id="edit-coupon-title" required>
+                    <label for="coupon-title">タイトル *</label>
+                    <input type="text" id="coupon-title" required placeholder="例: コーヒー1杯無料">
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="edit-base-discount">基本割引率 (%)</label>
-                    <input type="number" id="edit-base-discount" min="1" max="100" required>
+                    <label for="coupon-description">説明</label>
+                    <textarea id="coupon-description" rows="3" placeholder="クーポンの詳細を入力してください"></textarea>
                 </div>
-                
+
+                <div class="form-group">
+                    <label for="discount-initial">初期割引率 (%) *</label>
+                    <input type="number" id="discount-initial" min="1" max="100" value="10" required>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="edit-latitude">緯度</label>
-                        <input type="number" id="edit-latitude" step="any" required>
+                        <label for="start-time">配布開始時間 *</label>
+                        <input type="datetime-local" id="start-time" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit-longitude">経度</label>
-                        <input type="number" id="edit-longitude" step="any" required>
+                        <label for="end-time">配布終了時間 *</label>
+                        <input type="datetime-local" id="end-time" required>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="edit-is-active">
-                        アクティブ
-                    </label>
+                    <label>動的割引スケジュール</label>
+                    <div id="discount-schedule" class="discount-schedule">
+                        <!-- Schedule items will be added here -->
+                    </div>
+                    <button type="button" id="add-schedule" class="add-schedule-btn">
+                        ➕ スケジュール追加
+                    </button>
+                    <small>残り時間が短いほど割引率を高く設定してください</small>
                 </div>
-                
+
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">更新</button>
-                    <button type="button" id="cancel-edit" class="btn btn-secondary">キャンセル</button>
+                    <button type="button" id="cancel-create-coupon">キャンセル</button>
+                    <button type="submit" class="primary">作成</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Details Modal -->
-    <div id="details-modal" class="modal">
-        <div class="modal-content large">
+    <!-- Create Store Modal -->
+    <div id="create-store-modal" class="modal" style="display: none;">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3>クーポン詳細</h3>
-                <button class="close-btn" id="close-details-modal">&times;</button>
+                <h2>新しい店舗を追加</h2>
+                <button id="close-create-store" class="close-btn">✕</button>
             </div>
-            <div id="details-content">
-                <!-- Content will be populated by JavaScript -->
+
+            <form id="create-store-form">
+                <div class="form-group">
+                    <label for="store-name">店舗名 *</label>
+                    <input type="text" id="store-name" required placeholder="例: 東京駅コーヒーショップ">
+                </div>
+
+                <div class="form-group">
+                    <label for="store-description">説明</label>
+                    <textarea id="store-description" rows="3" placeholder="店舗の詳細を入力してください"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="store-address">住所</label>
+                    <div class="address-input-group">
+                        <input type="text" id="store-address" placeholder="例: 東京都千代田区丸の内1-1-1">
+                        <button type="button" id="geocode-address" class="address-geocode-btn">
+                            🗺️ 緯度経度を取得
+                        </button>
+                    </div>
+                    <small>住所を入力後、ボタンを押すと自動で緯度経度が設定されます</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="store-latitude">緯度 *</label>
+                        <input type="number" id="store-latitude" step="any" value="35.6812" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="store-longitude">経度 *</label>
+                        <input type="number" id="store-longitude" step="any" value="139.7671" required>
+                    </div>
+                </div>
+
+                <div class="location-helper">
+                    <button type="button" id="get-current-location" class="location-btn">
+                        📍 現在位置を取得
+                    </button>
+                    <small>緯度・経度は小数点以下6桁まで入力可能です</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="cancel-create-store">キャンセル</button>
+                    <button type="submit" class="primary">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Coupon Users Modal -->
+    <div id="coupon-users-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="coupon-users-title">クーポン利用者</h2>
+                <button id="close-coupon-users" class="close-btn">✕</button>
+            </div>
+
+            <div class="users-list">
+                <div id="users-table-container">
+                    <!-- Users table will be populated here -->
+                </div>
             </div>
         </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">⚙️</div>
+        <p>読み込み中...</p>
     </div>
 
     <script src="admin.js"></script>

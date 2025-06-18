@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserCoupon } from '../types';
-import { couponApi } from '../services/api';
+import { applyCoupon } from '../services/api';
 
 interface MyPageProps {
   coupons: UserCoupon[];
@@ -22,7 +22,7 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
     
     setLoading(true);
     try {
-      await couponApi(coupon.user_id, coupon.id);
+      await applyCoupon(coupon.id);
       onRefresh();
     } catch (error: any) {
       alert(error.message || 'Failed to use coupon');
@@ -97,7 +97,7 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
               style={{ cursor: coupon.is_used ? 'default' : 'pointer' }}
             >
               <div className="coupon-header">
-                <span className="shop-name">{coupon.shop_name}</span>
+                <span className="shop-name">{coupon.shop_name || coupon.store_name}</span>
                 <span className="discount-badge">{coupon.discount}% OFF</span>
               </div>
               

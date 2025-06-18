@@ -1,21 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import MapView from './components/MapView';
 import MyPage from './components/MyPage';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
 import { getCoupons, getUserCoupons, getCoupon } from './services/api';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Login';
+import Register from './components/Register';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
+function MainApp() {
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('map');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [userId] = useState('user-' + Math.random().toString(36).substr(2, 9));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+
+  const loadCoupons = useCallback(async () => {
+    if (!userLocation) return;
+    
+    try {
+      const data = await getCoupons(userLocation.lat, userLocation.lng);
+      setCoupons(data);
+    } catch (error) {
+      console.error('Error loading coupons:', error);
+      setError('Failed to load coupons');
+    }
+  }, [userLocation]);
+
+  const loadUserCoupons = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const data = await getUserCoupons();
+      setUserCoupons(data);
+    } catch (error) {
+      console.error('Error loading user coupons:', error);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     getCurrentLocation();
@@ -31,7 +58,7 @@ function App() {
       loadCoupons();
       loadUserCoupons();
     }
-  }, [userLocation]);
+  }, [userLocation, loadCoupons, loadUserCoupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -60,32 +87,11 @@ function App() {
     );
   };
 
-  const loadCoupons = async () => {
-    if (!userLocation) return;
-    
-    try {
-      const data = await getCoupons(userLocation.lat, userLocation.lng);
-      setCoupons(data);
-    } catch (error) {
-      console.error('Error loading coupons:', error);
-      setError('Failed to load coupons');
-    }
-  };
-
-  const loadUserCoupons = async () => {
-    try {
-      const data = await getUserCoupons(userId);
-      setUserCoupons(data);
-    } catch (error) {
-      console.error('Error loading user coupons:', error);
-    }
-  };
-
   const handleGetCoupon = async (coupon: Coupon) => {
-    if (!userLocation) return;
+    if (!userLocation || !isAuthenticated) return;
     
     try {
-      await getCoupon(coupon.id, userLocation, userId);
+      await getCoupon(coupon.id, userLocation);
       setSelectedCoupon(null);
       loadUserCoupons();
       loadCoupons();
@@ -118,20 +124,44 @@ function App() {
     );
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">📍</div>
-        <p>位置情報を取得中...</p>
+        <p>{authLoading ? '認証確認中...' : '位置情報を取得中...'}</p>
       </div>
     );
   }
 
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="App">
-      <header className="app-header">
+      <header className="app-header" style={{ position: 'relative' }}>
         <h1>COUPON LIMIT</h1>
         <p className="app-description">近くのクーポンを探して、お得にショッピング！</p>
+        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ color: '#1976d2', fontWeight: 'bold' }}>
+            こんにちは、{user?.name}さん
+          </span>
+          <button 
+            onClick={logout}
+            style={{ 
+              background: 'none', 
+              border: '1px solid #1976d2', 
+              color: '#1976d2', 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ログアウト
+          </button>
+        </div>
       </header>
 
       <nav className="bottom-nav">
@@ -176,6 +206,20 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/*" element={<MainApp />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
