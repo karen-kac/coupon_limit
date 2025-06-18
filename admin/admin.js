@@ -148,7 +148,7 @@ class AdminApp {
             }
 
             // Get user count for this coupon
-            const userCount = this.getUserCount(coupon.id);
+            const userCount = coupon.user_count || 0;
 
             row.innerHTML = `
                 <td>${coupon.shop_name}</td>
@@ -169,11 +169,6 @@ class AdminApp {
 
             tbody.appendChild(row);
         });
-    }
-
-    getUserCount(couponId) {
-        // This is a placeholder. In a real app, this would come from the API
-        return Math.floor(Math.random() * 10);
     }
 
     formatDate(dateString) {
