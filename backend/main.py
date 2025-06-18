@@ -311,10 +311,23 @@ async def create_coupon(request: CreateCouponRequest, db: Session = Depends(get_
 
 @app.get("/api/admin/coupons")
 async def get_all_coupons(db: Session = Depends(get_db)) -> List[dict]:
-    """Get all coupons with admin view"""
+    """Get all coupons with admin view including user counts"""
     coupon_repo = CouponRepository(db)
+    user_coupon_repo = UserCouponRepository(db)
+    
     db_coupons = coupon_repo.get_all_coupons()
-    return [db_coupon_to_dict(coupon) for coupon in db_coupons]
+    result = []
+    
+    for db_coupon in db_coupons:
+        # 各クーポンの取得ユーザー数を計算
+        obtained_users = user_coupon_repo.get_coupon_users(db_coupon.id)
+        user_count = len(obtained_users)
+        
+        coupon_dict = db_coupon_to_dict(db_coupon)
+        coupon_dict["user_count"] = user_count  # 追加
+        result.append(coupon_dict)
+    
+    return result
 
 @app.get("/api/admin/coupons/{coupon_id}")
 async def get_coupon_details(coupon_id: str, db: Session = Depends(get_db)):
