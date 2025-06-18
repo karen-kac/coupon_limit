@@ -264,6 +264,13 @@
             </div>
 
             <form id="create-coupon-form">
+                <div class="form-group" id="store-select-group" style="display: none;">
+                    <label for="coupon-store">対象店舗 *</label>
+                    <select id="coupon-store" required>
+                        <option value="">店舗を選択してください</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label for="coupon-title">タイトル *</label>
                     <input type="text" id="coupon-title" required placeholder="例: コーヒー1杯無料">

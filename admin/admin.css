@@ -1129,3 +1129,21 @@ body {
         padding: 8px 12px;
     }
 }
+
+/* Store selector styles */
+#store-select-group select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #f8dbc1;
+    border-radius: 8px;
+    font-size: 1rem;
+    background-color: white;
+    transition: border-color 0.3s ease;
+    color: #333;
+}
+
+#store-select-group select:focus {
+    outline: none;
+    border-color: #e6543a;
+    box-shadow: 0 0 0 3px rgba(230, 84, 58, 0.1);
+}

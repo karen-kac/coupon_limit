@@ -672,12 +672,17 @@ class AdminApp {
                 alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
                 return;
             }
+            
+            // 店舗選択フィールドを表示して設定
+            this.setupStoreSelector();
         } else {
             // 店舗オーナーの場合は自分の店舗をチェック
             if (!this.admin.linked_store_id && !this.store) {
                 alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
                 return;
             }
+            // 店舗選択フィールドを隠す
+            document.getElementById('store-select-group').style.display = 'none';
         }
         
         console.log('Creating coupon for admin:', this.admin); // デバッグ用
@@ -689,9 +694,35 @@ class AdminApp {
         document.getElementById('create-coupon-modal').style.display = 'flex';
     }
 
+    setupStoreSelector() {
+        const storeSelectGroup = document.getElementById('store-select-group');
+        const storeSelect = document.getElementById('coupon-store');
+        
+        // 店舗選択フィールドを表示
+        storeSelectGroup.style.display = 'block';
+        
+        // 既存のオプションをクリア
+        storeSelect.innerHTML = '<option value="">店舗を選択してください</option>';
+        
+        // 利用可能な店舗をオプションに追加
+        this.stores.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store.id;
+            option.textContent = `${store.name} (${store.address || '住所未設定'})`;
+            storeSelect.appendChild(option);
+        });
+        
+        // 最初の店舗を自動選択
+        if (this.stores.length > 0) {
+            storeSelect.value = this.stores[0].id;
+        }
+    }
+
     hideCreateCouponModal() {
         document.getElementById('create-coupon-modal').style.display = 'none';
         document.getElementById('create-coupon-form').reset();
+        // 店舗選択フィールドを隠す
+        document.getElementById('store-select-group').style.display = 'none';
     }
 
     showCreateStoreModal() {
@@ -857,23 +888,28 @@ class AdminApp {
     }
 
     getCouponFormData() {
-        // 店舗オーナーの場合は自分の店舗ID、スーパー管理者の場合は最初の利用可能な店舗
+        // 店舗オーナーの場合は自分の店舗ID、スーパー管理者の場合は選択された店舗ID
         let storeId = null;
         if (this.admin.role === 'store_owner') {
             storeId = this.admin.linked_store_id || this.store?.id;
         } else if (this.admin.role === 'super_admin') {
-            // スーパー管理者の場合は最初の利用可能な店舗を使用
-            if (this.stores && this.stores.length > 0) {
+            // スーパー管理者の場合は選択された店舗IDを使用
+            const storeSelect = document.getElementById('coupon-store');
+            storeId = storeSelect ? storeSelect.value : null;
+            
+            // フォールバックとして最初の利用可能な店舗を使用
+            if (!storeId && this.stores && this.stores.length > 0) {
                 storeId = this.stores[0].id;
             }
         }
 
         console.log('Getting coupon form data - storeId:', storeId); // デバッグ用
         console.log('Admin role:', this.admin.role); // デバッグ用
+        console.log('Selected store from form:', document.getElementById('coupon-store')?.value); // デバッグ用
         console.log('Available stores:', this.stores); // デバッグ用
 
         if (!storeId) {
-            throw new Error('店舗IDが見つかりません。店舗を作成してからクーポンを作成してください。');
+            throw new Error('店舗を選択してください。店舗が存在しない場合は、まず店舗を作成してください。');
         }
 
         return {
