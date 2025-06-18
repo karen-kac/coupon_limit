@@ -123,7 +123,7 @@ class AdminApp {
             this.admin.role === 'store_owner' ? '店舗オーナー' : 'スーパー管理者';
         
         if (this.store) {
-            document.getElementById('store-name').textContent = this.store.name;
+            document.getElementById('current-store-name').textContent = this.store.name;
         }
 
         document.getElementById('welcome-message').textContent = 
@@ -745,21 +745,44 @@ class AdminApp {
         const formData = this.getStoreFormData();
         
         try {
+            console.log('Sending store data:', formData); // デバッグ用
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/stores`, {
                 method: 'POST',
                 body: JSON.stringify(formData)
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || '店舗の作成に失敗しました');
+                let errorMessage = '店舗の作成に失敗しました';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                    console.error('Server error:', errorData); // デバッグ用
+                } catch (jsonError) {
+                    console.error('Failed to parse error response:', jsonError);
+                    errorMessage = `サーバーエラー (${response.status}): ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
             }
 
+            const result = await response.json();
+            console.log('Store created successfully:', result); // デバッグ用
+            
             this.hideCreateStoreModal();
             this.loadStores();
             alert('店舗を作成しました！');
         } catch (error) {
-            alert(error.message);
+            console.error('Store creation error:', error); // デバッグ用
+            let errorMessage = '予期しないエラーが発生しました';
+            
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else {
+                errorMessage = 'ネットワークエラーまたは接続問題が発生しました';
+            }
+            
+            alert(errorMessage);
         }
     }
 
@@ -785,12 +808,51 @@ class AdminApp {
     }
 
     getStoreFormData() {
+        // フォーム要素の取得と存在チェック
+        const nameElement = document.getElementById('store-name');
+        const descriptionElement = document.getElementById('store-description');
+        const latitudeElement = document.getElementById('store-latitude');
+        const longitudeElement = document.getElementById('store-longitude');
+        const addressElement = document.getElementById('store-address');
+
+        if (!nameElement || !latitudeElement || !longitudeElement) {
+            throw new Error('フォーム要素が見つかりません。ページを再読み込みしてください。');
+        }
+
+        const name = nameElement.value ? nameElement.value.trim() : '';
+        const description = descriptionElement && descriptionElement.value ? descriptionElement.value.trim() : '';
+        const latitudeValue = latitudeElement.value || '';
+        const longitudeValue = longitudeElement.value || '';
+        const address = addressElement && addressElement.value ? addressElement.value.trim() : '';
+
+        console.log('Form values:', { name, description, latitudeValue, longitudeValue, address }); // デバッグ用
+
+        // バリデーション
+        if (!name) {
+            throw new Error('店舗名を入力してください');
+        }
+
+        const latitude = parseFloat(latitudeValue);
+        const longitude = parseFloat(longitudeValue);
+
+        if (isNaN(latitude) || isNaN(longitude)) {
+            throw new Error('緯度と経度は数値で入力してください');
+        }
+
+        if (latitude < -90 || latitude > 90) {
+            throw new Error('緯度は-90から90の間で入力してください');
+        }
+
+        if (longitude < -180 || longitude > 180) {
+            throw new Error('経度は-180から180の間で入力してください');
+        }
+
         return {
-            name: document.getElementById('store-name').value,
-            description: document.getElementById('store-description').value,
-            latitude: parseFloat(document.getElementById('store-latitude').value),
-            longitude: parseFloat(document.getElementById('store-longitude').value),
-            address: document.getElementById('store-address').value
+            name,
+            description: description || null,
+            latitude,
+            longitude,
+            address: address || null
         };
     }
 

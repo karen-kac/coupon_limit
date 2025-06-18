@@ -117,14 +117,14 @@ def get_current_admin_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if payload is None:
         raise credentials_exception
     
-    email: str = payload.get("sub")
-    user_type: str = payload.get("type", "user")
+    admin_id: str = payload.get("sub")
+    user_type: str = payload.get("type")
     
-    if email is None or user_type != "admin":
+    if admin_id is None or user_type != "admin":
         raise credentials_exception
     
     admin = db.query(Admin).filter(
-        Admin.email == email,
+        Admin.id == admin_id,
         Admin.is_active == True
     ).first()
     
@@ -183,7 +183,7 @@ async def register_admin(admin_data: AdminRegister, db: Session = Depends(get_db
             email=admin_data.email,
             password_hash=get_password_hash(admin_data.password),
             role=admin_data.role,
-            linked_store_id=admin_data.linked_store_id,
+            linked_store_id=str(admin_data.linked_store_id) if admin_data.linked_store_id else None,
             is_active=True
         )
         
@@ -193,11 +193,11 @@ async def register_admin(admin_data: AdminRegister, db: Session = Depends(get_db
         
         # Create access token
         access_token = create_access_token(
-            data={"sub": new_admin.email, "type": "admin", "admin_id": new_admin.id}
+            data={"sub": str(new_admin.id), "type": "admin", "admin_id": str(new_admin.id)}
         )
         
         admin_response = AdminResponse(
-            id=new_admin.id,
+            id=str(new_admin.id),
             email=new_admin.email,
             role=new_admin.role,
             linked_store_id=new_admin.linked_store_id,
@@ -245,14 +245,14 @@ async def login_admin(admin_data: AdminLogin, db: Session = Depends(get_db)):
     
     # Create access token with admin type
     access_token = create_access_token(
-        data={"sub": admin.email, "type": "admin", "admin_id": admin.id}
+        data={"sub": str(admin.id), "type": "admin", "admin_id": str(admin.id)}
     )
     
     admin_response = AdminResponse(
-        id=admin.id,
+        id=str(admin.id),
         email=admin.email,
         role=admin.role,
-        linked_store_id=admin.linked_store_id,
+        linked_store_id=str(admin.linked_store_id) if admin.linked_store_id else None,
         is_active=admin.is_active
     )
     
@@ -266,10 +266,10 @@ async def login_admin(admin_data: AdminLogin, db: Session = Depends(get_db)):
 async def get_current_admin_user_info(current_admin: Admin = Depends(get_current_admin_user)):
     """Get current admin information"""
     return AdminResponse(
-        id=current_admin.id,
+        id=str(current_admin.id),
         email=current_admin.email,
         role=current_admin.role,
-        linked_store_id=current_admin.linked_store_id,
+        linked_store_id=str(current_admin.linked_store_id) if current_admin.linked_store_id else None,
         is_active=current_admin.is_active
     )
 
@@ -337,7 +337,7 @@ async def get_stores(
         raise HTTPException(status_code=403, detail="無効な管理者権限です")
     
     return [StoreResponse(
-        id=store.id,
+        id=str(store.id),
         name=store.name,
         description=store.description,
         latitude=store.latitude,
@@ -354,18 +354,31 @@ async def create_store(
     admin: Admin = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new store (super admin only)"""
+    """Create a new store"""
     
-    if admin.role != "super_admin":
-        raise HTTPException(status_code=403, detail="スーパー管理者権限が必要です")
+    if admin.role not in ["super_admin", "store_owner"]:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     try:
+        # Validate required fields
+        if not store_data.name or not store_data.name.strip():
+            raise HTTPException(status_code=400, detail="店舗名は必須です")
+        
+        if store_data.latitude is None or store_data.longitude is None:
+            raise HTTPException(status_code=400, detail="緯度と経度は必須です")
+        
+        if not (-90 <= store_data.latitude <= 90):
+            raise HTTPException(status_code=400, detail="緯度は-90から90の間で入力してください")
+        
+        if not (-180 <= store_data.longitude <= 180):
+            raise HTTPException(status_code=400, detail="経度は-180から180の間で入力してください")
+        
         new_store = Store(
-            name=store_data.name,
-            description=store_data.description,
+            name=store_data.name.strip(),
+            description=store_data.description.strip() if store_data.description else None,
             latitude=store_data.latitude,
             longitude=store_data.longitude,
-            address=store_data.address,
+            address=store_data.address.strip() if store_data.address else None,
             owner_email=admin.email  # For now, use admin's email
         )
         
@@ -373,8 +386,13 @@ async def create_store(
         db.commit()
         db.refresh(new_store)
         
+        # Link store to admin if they don't have one yet and are store owner
+        if admin.role == "store_owner" and not admin.linked_store_id:
+            admin.linked_store_id = str(new_store.id)
+            db.commit()
+        
         return StoreResponse(
-            id=new_store.id,
+            id=str(new_store.id),
             name=new_store.name,
             description=new_store.description,
             latitude=new_store.latitude,
@@ -387,7 +405,10 @@ async def create_store(
         
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="店舗の作成に失敗しました")
+        print(f"Store creation error: {str(e)}")  # サーバーログに詳細を出力
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"店舗の作成に失敗しました: {str(e)}")
 
 @router.get("/coupons", response_model=List[CouponResponse])
 async def get_coupons(
@@ -410,8 +431,8 @@ async def get_coupons(
         raise HTTPException(status_code=403, detail="無効な管理者権限です")
     
     return [CouponResponse(
-        id=coupon.id,
-        store_id=coupon.store_id,
+        id=str(coupon.id),
+        store_id=str(coupon.store_id),
         store_name=store.name,
         title=coupon.title,
         description=coupon.description,
@@ -469,8 +490,8 @@ async def create_coupon(
         db.refresh(new_coupon)
         
         return CouponResponse(
-            id=new_coupon.id,
-            store_id=new_coupon.store_id,
+            id=str(new_coupon.id),
+            store_id=str(new_coupon.store_id),
             store_name=store.name,
             title=new_coupon.title,
             description=new_coupon.description,

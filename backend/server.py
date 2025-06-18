@@ -23,6 +23,9 @@ from auth import (
     get_current_user_optional, get_current_admin_optional, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
+# Import admin routes
+from api.admin_routes import router as admin_router
+
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
 app.add_middleware(
@@ -32,6 +35,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Include admin routes
+app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
 # Pydantic models for requests/responses
 class UserRegisterRequest(BaseModel):
@@ -170,118 +176,18 @@ async def login_user(user_data: UserLoginRequest, db: Session = Depends(get_db))
         user=user_to_dict(user)
     )
 
-@app.post("/api/auth/admin/login", response_model=TokenResponse)
-@app.post("/api/admin/auth/login", response_model=TokenResponse)
-async def login_admin(admin_data: AdminLoginRequest, db: Session = Depends(get_db)):
-    """Login admin or store owner"""
-    admin_repo = AdminRepository(db)
-    
-    admin = admin_repo.authenticate_admin(admin_data.email, admin_data.password)
-    if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
-        )
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(admin.id), "type": "admin"}, 
-        expires_delta=access_token_expires
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        admin={
-            "id": str(admin.id),
-            "email": admin.email,
-            "role": admin.role,
-            "linked_store_id": str(admin.linked_store_id) if admin.linked_store_id else None
-        }
-    )
+# Admin endpoints moved to admin_routes.py
 
-@app.post("/api/auth/admin/register", response_model=TokenResponse)
-@app.post("/api/admin/auth/register", response_model=TokenResponse)
-async def register_admin(admin_data: AdminRegisterRequest, db: Session = Depends(get_db)):
-    """Register a new admin or store owner"""
-    admin_repo = AdminRepository(db)
-    
-    # Check if admin already exists
-    if admin_repo.get_admin_by_email(admin_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Validate role
-    if admin_data.role not in ["store_owner", "super_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role"
-        )
-    
-    # For super admin, require registration code
-    if admin_data.role == "super_admin":
-        if admin_data.registration_code != "SUPER_ADMIN_2024":  # Change this to your secret code
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid registration code"
-            )
-    
-    # For store owner, validate store
-    if admin_data.role == "store_owner" and admin_data.linked_store_id:
-        store_repo = StoreRepository(db)
-        store = store_repo.get_store_by_id(admin_data.linked_store_id)
-        if not store:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid store"
-            )
-    
-    # Create admin
-    admin = admin_repo.create_admin({
-        "email": admin_data.email,
-        "password": admin_data.password,
-        "role": admin_data.role,
-        "linked_store_id": admin_data.linked_store_id
-    })
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(admin.id), "type": "admin"}, 
-        expires_delta=access_token_expires
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        admin={
-            "id": str(admin.id),
-            "email": admin.email,
-            "role": admin.role,
-            "linked_store_id": str(admin.linked_store_id) if admin.linked_store_id else None
-        }
-    )
+# Admin registration moved to admin_routes.py
 
 @app.get("/api/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return user_to_dict(current_user)
 
-@app.get("/api/admin/auth/me")
-async def get_current_admin_info(current_admin: Admin = Depends(get_current_admin)):
-    """Get current admin information"""
-    return {
-        "id": str(current_admin.id),
-        "email": current_admin.email,
-        "role": current_admin.role,
-        "linked_store_id": str(current_admin.linked_store_id) if current_admin.linked_store_id else None
-    }
+# Admin auth endpoints moved to admin_routes.py
 
 @app.get("/api/auth/verify")
-@app.get("/api/admin/auth/verify")
 async def verify_token(
     current_user: Optional[User] = Depends(get_current_user_optional),
     current_admin: Optional[Admin] = Depends(get_current_admin_optional)
@@ -303,52 +209,9 @@ async def verify_token(
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # Store management endpoints
-@app.post("/api/stores")
-@app.post("/api/admin/stores")
-async def create_store(
-    store_data: StoreCreateRequest, 
-    current_admin: Admin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Create a new store (store owners and super admins only)"""
-    if current_admin.role not in ["store_owner", "super_admin"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    store_repo = StoreRepository(db)
-    
-    # For store owners, use their email. For super admins, allow specifying
-    owner_email = current_admin.email
-    
-    store = store_repo.create_store({
-        "name": store_data.name,
-        "description": store_data.description,
-        "latitude": store_data.latitude,
-        "longitude": store_data.longitude,
-        "address": store_data.address,
-        "logo_url": store_data.logo_url,
-        "owner_email": owner_email
-    })
-    
-    # Link store to admin if they don't have one yet
-    if not current_admin.linked_store_id:
-        current_admin.linked_store_id = store.id
-        db.commit()
-        
-        # Refresh admin info for the response
-        db.refresh(current_admin)
-    
-    return {"message": "Store created successfully", "store": store_to_dict(store)}
+# Store creation endpoints moved to admin_routes.py
 
-@app.get("/api/stores/my")
-@app.get("/api/admin/stores")
-async def get_my_stores(
-    current_admin: Admin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Get stores owned by current admin"""
-    store_repo = StoreRepository(db)
-    stores = store_repo.get_stores_by_owner(current_admin.email)
-    return [store_to_dict(store) for store in stores]
+# Admin store endpoints moved to admin_routes.py
 
 @app.get("/api/stores/public")
 async def get_public_stores(db: Session = Depends(get_db)):
@@ -579,85 +442,12 @@ async def create_store_coupon_legacy(
     
     return {"message": "Coupon created successfully", "coupon": coupon_to_dict(coupon)}
 
-@app.post("/api/admin/coupons")
-async def create_admin_coupon(
-    coupon_data: CouponCreateRequest,
-    current_admin: Admin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Create a coupon for admin's associated store"""
-    # 管理者の関連店舗IDを取得
-    store_id = current_admin.linked_store_id
-    
-    if not store_id:
-        raise HTTPException(status_code=400, detail="管理者に関連付けられた店舗がありません。先に店舗を作成してください。")
-    
-    coupon_repo = EnhancedCouponRepository(db)
-    
-    coupon = coupon_repo.create_coupon({
-        "store_id": store_id,
-        "title": coupon_data.title,
-        "description": coupon_data.description,
-        "discount_rate_initial": coupon_data.discount_rate_initial,
-        "discount_rate_schedule": coupon_data.discount_rate_schedule or [],
-        "start_time": coupon_data.start_time,
-        "end_time": coupon_data.end_time
-    })
-    
-    return {"message": "Coupon created successfully", "coupon": coupon_to_dict(coupon)}
+# Admin coupon creation moved to admin_routes.py
 
-@app.get("/api/store/coupons")
-@app.get("/api/admin/coupons")
-async def get_store_coupons(
-    current_admin: Admin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Get all coupons for store owner's store"""
-    if current_admin.role != "store_owner" or not current_admin.linked_store_id:
-        raise HTTPException(status_code=403, detail="Store owner access required")
-    
-    coupon_repo = EnhancedCouponRepository(db)
-    coupons = coupon_repo.get_coupons_by_store(current_admin.linked_store_id)
-    
-    return [coupon_to_dict(coupon) for coupon in coupons]
+# Admin coupon get endpoints moved to admin_routes.py
 
 # Legacy admin endpoints (backwards compatibility)
-@app.get("/api/admin/stats")
-async def get_admin_stats(
-    current_admin: Admin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Get statistics for admin dashboard"""
-    coupon_repo = EnhancedCouponRepository(db)
-    user_coupon_repo = EnhancedUserCouponRepository(db)
-    
-    # Filter by store if store owner
-    if current_admin.role == "store_owner" and current_admin.linked_store_id:
-        all_coupons = coupon_repo.get_coupons_by_store(current_admin.linked_store_id)
-    else:
-        all_coupons = coupon_repo.get_active_coupons()
-    
-    now = datetime.now()
-    active_coupons = [c for c in all_coupons if c.active_status == "active" and c.end_time > now]
-    expired_coupons = [c for c in all_coupons if c.end_time <= now]
-    
-    # Get user coupon stats
-    total_obtained = 0
-    total_used = 0
-    
-    for coupon in all_coupons:
-        coupon_users = db.query(UserCoupon).filter(UserCoupon.coupon_id == coupon.id).all()
-        total_obtained += len(coupon_users)
-        total_used += len([uc for uc in coupon_users if uc.status == "used"])
-    
-    return {
-        "total_coupons": len(all_coupons),
-        "active_coupons": len(active_coupons),
-        "expired_coupons": len(expired_coupons),
-        "total_obtained": total_obtained,
-        "total_used": total_used,
-        "overall_usage_rate": (total_used / total_obtained * 100) if total_obtained > 0 else 0.0
-    }
+# Admin stats endpoint moved to admin_routes.py
 
 @app.get("/api/health")
 async def health_check():
