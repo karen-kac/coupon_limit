@@ -158,8 +158,11 @@ async def login_admin(admin_data: AdminLoginRequest):
     }
 
 @app.get("/api/auth/me")
-async def get_current_user_info(authorization: str = Depends(lambda x: x.headers.get("Authorization"))):
-    token = get_token_from_header(authorization)
+async def get_current_user_info(authorization: Optional[str] = None):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    token = authorization.replace("Bearer ", "")
     
     for user_id, user_token in tokens.items():
         if user_token == token:
