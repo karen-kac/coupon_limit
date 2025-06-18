@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 import uuid
 from backend.models import User, Store, Coupon, UserCoupon, Admin, GeoPoint, Reservation
-from auth import get_password_hash, verify_password
+from backend.auth import get_password_hash, verify_password
 
 class UserRepository:
     def __init__(self, db: Session):
