@@ -567,7 +567,7 @@ async def get_coupon_users(
     ).filter(UserCoupon.coupon_id == coupon_id).all()
     
     return [UserCouponDetail(
-        id=user_coupon.id,
+        id=str(user_coupon.id),
         user_name=user.name,
         user_email=user.email,
         coupon_title=coupon.title,
