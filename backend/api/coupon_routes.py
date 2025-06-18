@@ -85,7 +85,8 @@ def update_coupon_discounts(db: Session):
         
         if coupon.current_discount != new_discount:
             coupon.current_discount = new_discount
-            db.commit()
+    
+    db.commit()
 
 @router.get("/", response_model=List[CouponResponse])
 async def get_nearby_coupons(
