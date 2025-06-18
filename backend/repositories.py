@@ -157,14 +157,24 @@ class EnhancedCouponRepository:
     
     def calculate_current_discount(self, coupon: Coupon) -> int:
         """Calculate current discount based on time remaining and schedule"""
+        from datetime import timezone
+        
+        # Handle timezone-aware comparison
         now = datetime.now()
+        end_time = coupon.end_time
+        
+        # Make both timezone-naive for comparison
+        if end_time.tzinfo is not None:
+            end_time = end_time.replace(tzinfo=None)
+        if now.tzinfo is not None:
+            now = now.replace(tzinfo=None)
         
         # Check if expired
-        if now >= coupon.end_time:
+        if now >= end_time:
             return coupon.discount_rate_initial
         
         # Calculate time remaining in minutes
-        time_remaining = coupon.end_time - now
+        time_remaining = end_time - now
         minutes_remaining = time_remaining.total_seconds() / 60
         
         # Use dynamic schedule if available

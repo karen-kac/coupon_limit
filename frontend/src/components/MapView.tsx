@@ -20,21 +20,39 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
 
+  // デバッグログを追加
+  React.useEffect(() => {
+    console.log('MapView received coupons:', coupons);
+    console.log('MapView userLocation:', userLocation);
+    console.log('MapView error:', error);
+  }, [coupons, userLocation, error]);
+
   const updateMarkers = useCallback(() => {
-    if (!mapInstanceRef.current || !window.google) return;
+    console.log('updateMarkers called');
+    console.log('mapInstanceRef.current:', mapInstanceRef.current);
+    console.log('window.google:', window.google);
+    console.log('coupons to process:', coupons);
+    
+    if (!mapInstanceRef.current || !window.google) {
+      console.log('Early return: no map instance or google maps');
+      return;
+    }
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
 
     // Add coupon markers
-    coupons.forEach(coupon => {
+    coupons.forEach((coupon, index) => {
+      console.log(`Processing coupon ${index}:`, coupon);
       const isNearby = coupon.distance_meters !== undefined && coupon.distance_meters <= 300;
+      
+      console.log(`Creating marker for coupon at lat: ${coupon.location.lat}, lng: ${coupon.location.lng}`);
       
       const marker = new window.google.maps.Marker({
         position: { lat: coupon.location.lat, lng: coupon.location.lng },
         map: mapInstanceRef.current,
-        title: coupon.shop_name,
+                  title: coupon.store_name || coupon.shop_name, // shop_name または store_name に対応
         icon: {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
             <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
@@ -172,7 +190,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
               >
-                <strong>{coupon.shop_name}</strong>
+                <strong>{coupon.store_name || coupon.shop_name}</strong>
                 <br />
                 <span>{coupon.title} - {coupon.current_discount}% OFF</span>
                 {coupon.distance_meters && (

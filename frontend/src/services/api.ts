@@ -84,8 +84,8 @@ export const getCoupon = async (couponId: string, userLocation: Location, userId
   return response.json();
 };
 
-export const applyCoupon = async (userId: string, couponId: string): Promise<any> => {
-  const response = await authFetch(`${API_BASE_URL}/user/${userId}/coupons/${couponId}/use`, {
+export const applyCoupon = async (couponId: string): Promise<any> => {
+  const response = await authFetch(`${API_BASE_URL}/user/coupons/${couponId}/use`, {
     method: 'POST',
   });
   if (!response.ok) {

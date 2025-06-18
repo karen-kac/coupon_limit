@@ -239,6 +239,7 @@ async def get_coupons(
 ) -> List[CouponResponse]:
     """Get all active coupons within radius"""
     try:
+        print(f"Getting coupons for lat={lat}, lng={lng}, radius={radius}")
         coupon_repo = EnhancedCouponRepository(db)
         store_repo = StoreRepository(db)
         geo_repo = GeoPointRepository(db)
@@ -252,19 +253,24 @@ async def get_coupons(
         
         user_location = Location(lat=lat, lng=lng)
         active_coupons = coupon_repo.get_active_coupons()
+        print(f"Found {len(active_coupons)} active coupons")
         nearby_coupons = []
         
         for coupon in active_coupons:
             try:
+                print(f"Processing coupon: {coupon.id} for store: {coupon.store_id}")
                 # Get store information
                 store = store_repo.get_store_by_id(coupon.store_id)
                 if not store:
+                    print(f"Store not found for coupon {coupon.id}")
                     continue
                     
                 distance = calculate_distance(
                     user_location.lat, user_location.lng,
                     store.latitude, store.longitude
                 )
+                
+                print(f"Distance to store {store.name}: {distance}m (radius: {radius}m)")
                 
                 if distance <= radius:
                     # Calculate current discount
@@ -276,28 +282,40 @@ async def get_coupons(
                         db.commit()
                     
                     now = datetime.now()
-                    time_remaining = coupon.end_time - now
+                    
+                    # Handle timezone-aware comparison
+                    end_time = coupon.end_time
+                    if end_time.tzinfo is not None:
+                        end_time = end_time.replace(tzinfo=None)
+                    if now.tzinfo is not None:
+                        now = now.replace(tzinfo=None)
+                    
+                    time_remaining = end_time - now
                     minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
                     
                     nearby_coupons.append(CouponResponse(
-                        id=coupon.id,
+                        id=str(coupon.id),
                         store_name=store.name,
                         title=coupon.title,
                         description=coupon.description,
                         current_discount=current_discount,
                         location=Location(lat=store.latitude, lng=store.longitude),
-                        expires_at=coupon.end_time,
+                        expires_at=end_time,
                         time_remaining_minutes=minutes_remaining,
                         distance_meters=distance
                     ))
+                    print(f"Added coupon {coupon.id} to nearby list")
             except Exception as e:
                 print(f"Error processing coupon {coupon.id}: {e}")
                 continue
         
+        print(f"Returning {len(nearby_coupons)} nearby coupons")
         return nearby_coupons
         
     except Exception as e:
+        import traceback
         print(f"Error in get_coupons: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
         # Return sample data if database fails
         return [
             CouponResponse(
@@ -398,16 +416,16 @@ async def get_user_coupons(
     
     return result
 
-@app.post("/api/user/coupons/{coupon_id}/use")
+@app.post("/api/user/coupons/{user_coupon_id}/use")
 async def use_coupon(
-    coupon_id: str, 
+    user_coupon_id: str, 
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Mark a coupon as used"""
     user_coupon_repo = EnhancedUserCouponRepository(db)
     
-    user_coupon = user_coupon_repo.use_coupon(coupon_id, current_user.id)
+    user_coupon = user_coupon_repo.use_coupon(user_coupon_id, current_user.id)
     
     if not user_coupon:
         raise HTTPException(status_code=404, detail="User coupon not found")

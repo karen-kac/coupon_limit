@@ -737,10 +737,14 @@ class AdminApp {
 
     async viewCouponUsers(couponId) {
         try {
+            console.log('Fetching users for coupon ID:', couponId); // デバッグ追加
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons/${couponId}/users`);
+            console.log('API response status:', response.status); // デバッグ追加
+            
             if (!response.ok) throw new Error('利用者情報の取得に失敗しました');
             
             const users = await response.json();
+            console.log('API response users:', users); // デバッグ追加
             const coupon = this.coupons.find(c => c.id === couponId);
             
             document.getElementById('coupon-users-title').textContent = `${coupon?.title} の利用者`;
