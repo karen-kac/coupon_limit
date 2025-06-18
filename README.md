@@ -39,7 +39,7 @@ cd backend
 pip install -r requirements.txt
 
 # サーバーを起動
-python main.py
+python server.py
 ```
 
 バックエンドは `http://localhost:8000` で起動します。
@@ -93,7 +93,7 @@ coupon_limit/
 │   │   ├── services/      # API呼び出し
 │   │   └── types.ts       # TypeScript型定義
 ├── backend/           # Python FastAPI
-│   ├── main.py           # メインサーバーファイル
+│   ├── server.py         # メインサーバーファイル
 │   └── requirements.txt  # Python依存関係
 └── RDD.md            # 要件定義書
 ```
@@ -182,5 +182,5 @@ coupon_limit/
 
 ### カスタマイズ
 
-- **サンプルデータ**: `backend/main.py` の `startup_event` 関数
-- **データベースモデル**: `backend/database.py`
+- **サンプルデータ**: `backend/server.py` の `startup_event` 関数
+- **データベースモデル**: `backend/models.py`
