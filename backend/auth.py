@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from backend.models import get_db, User, Admin
+from models import get_db, User, Admin
 
 # Configuration
 SECRET_KEY = "your-secret-key-change-this-in-production"  # TODO: Move to environment variable
