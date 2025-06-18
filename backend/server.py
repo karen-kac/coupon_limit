@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 # Import new models and repositories
-from backend.models import get_db, User, Store, Coupon, UserCoupon, Admin
+from models import get_db, User, Store, Coupon, UserCoupon, Admin
 from backend.repositories import (
     UserRepository, StoreRepository, EnhancedCouponRepository, 
     EnhancedUserCouponRepository, AdminRepository, GeoPointRepository,
