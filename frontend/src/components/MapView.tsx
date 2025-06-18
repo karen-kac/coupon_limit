@@ -77,8 +77,17 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }, [coupons, onCouponClick]);
 
   const initializeMap = useCallback(() => {
-    if (!userLocation || !mapRef.current || !window.google) return;
+    console.log('initializeMap called');
+    console.log('userLocation:', userLocation);
+    console.log('mapRef.current:', mapRef.current);
+    console.log('window.google:', window.google);
+    
+    if (!userLocation || !mapRef.current || !window.google) {
+      console.log('initializeMap early return');
+      return;
+    }
 
+    console.log('Creating Google Map instance...');
     const map = new window.google.maps.Map(mapRef.current, {
       center: { lat: userLocation.lat, lng: userLocation.lng },
       zoom: 16,
@@ -109,6 +118,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     });
 
     mapInstanceRef.current = map;
+    console.log('Google Map instance created and stored in mapInstanceRef');
   }, [userLocation]);
 
   useEffect(() => {
@@ -136,8 +146,16 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }, [userLocation, initializeMap]);
 
   useEffect(() => {
+    console.log('useEffect for updateMarkers triggered');
+    console.log('mapInstanceRef.current exists:', !!mapInstanceRef.current);
+    console.log('userLocation exists:', !!userLocation);
+    console.log('coupons count:', coupons.length);
+    
     if (mapInstanceRef.current && userLocation) {
+      console.log('Calling updateMarkers...');
       updateMarkers();
+    } else {
+      console.log('updateMarkers not called - missing prerequisites');
     }
   }, [coupons, updateMarkers, userLocation]);
 
