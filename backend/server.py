@@ -6,6 +6,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import math
 import uuid
+import os
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -29,8 +30,12 @@ from api.admin_routes import router as admin_router
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
+# Get the absolute path to the admin directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+admin_dir = os.path.join(os.path.dirname(current_dir), "admin")
+
 # Mount static files for admin
-app.mount("/static-admin", StaticFiles(directory="admin"), name="static-admin")
+app.mount("/static-admin", StaticFiles(directory=admin_dir), name="static-admin")
 
 app.add_middleware(
     CORSMiddleware,
