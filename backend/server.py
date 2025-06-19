@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -27,6 +28,9 @@ from auth import (
 from api.admin_routes import router as admin_router
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
+
+# Mount static files for admin
+app.mount("/static-admin", StaticFiles(directory="admin"), name="static-admin")
 
 app.add_middleware(
     CORSMiddleware,

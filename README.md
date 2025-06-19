@@ -79,7 +79,7 @@ npm start
 
 ### 4. 管理者画面の利用
 
-ブラウザで `admin/index.html` を直接開いてアクセス：
+ブラウザで `http://localhost:8000/static-admin/index.html` を直接開いてアクセス：
 
 デモ用管理者アカウント:
 - coffee@example.com / store1123
@@ -116,7 +116,7 @@ npm start
 6. 「マイページ」タブで取得したクーポンを確認・使用できます
 
 ### 管理者側
-1. ブラウザで `http://localhost:3001` にアクセス
+1. ブラウザで `http://localhost:8000/static-admin/index.html` にアクセス
 2. 管理者アカウントでログイン
 3. ダッシュボードで統計情報を確認
 4. クーポン管理タブで新規クーポンの作成・既存クーポンの管理
@@ -224,7 +224,7 @@ docker build -t coupon-backend .
 ### 開発時の注意点
 - フロントエンドは `http://localhost:3000`
 - バックエンドは `http://localhost:8000`
-- 管理者画面は `admin/index.html` を直接開く
+- 管理者画面は `http://localhost:8000/static-admin/index.html` を直接開く
 - 位置情報APIは HTTPS または localhost でのみ動作
 
 ### テスト
