@@ -1,4 +1,5 @@
-import { Coupon, UserCoupon, Location } from '../types';
+import { UserCoupon, Location, Coupon } from '../types';
+import axios from 'axios';
 
 // Environment-based API configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 
@@ -36,22 +37,20 @@ const authFetch = async (url: string, options: RequestInit = {}): Promise<Respon
   });
 };
 
-export const getCoupons = async (lat: number, lng: number, radius: number = 1000): Promise<Coupon[]> => {
+export const getCoupons = async (lat: number, lng: number): Promise<Coupon[]> => {
   try {
-    console.log(`Fetching coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
-    const response = await authFetch(`${API_BASE_URL}/coupons?lat=${lat}&lng=${lng}&radius=${radius}`);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      throw new Error(`Failed to fetch coupons: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('Received coupons:', data);
-    return data;
+    const token = getAuthToken();
+    const response = await axios.get(`${API_BASE_URL}/coupons`, {
+      params: {
+        lat,
+        lng,
+        radius: 5000 // 検索範囲を5kmに拡大
+      },
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    return response.data;
   } catch (error) {
-    console.error('getCoupons error:', error);
+    console.error('Error fetching coupons:', error);
     throw error;
   }
 };

@@ -32,35 +32,38 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }, [coupons, userLocation, error]);
 
   const updateMarkers = useCallback(() => {
-    console.log('updateMarkers called');
-    console.log('mapInstanceRef.current:', mapInstanceRef.current);
-    console.log('window.google:', window.google);
-    console.log('coupons to process:', coupons);
-    
-    if (!mapInstanceRef.current || !window.google) {
-      console.log('Early return: no map instance or google maps');
+    console.log('Calling updateMarkers...');
+    if (!mapInstanceRef.current) {
+      console.warn('Map instance not available');
       return;
     }
 
-    // Clear existing markers
+    // 既存のマーカーをクリア
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
 
-    // Add coupon markers
-    coupons.forEach((coupon, index) => {
-      console.log(`Processing coupon ${index}:`, coupon);
-      const isNearby = coupon.distance_meters !== undefined && coupon.distance_meters <= 300;
+    console.log('Processing coupons:', coupons);
+    coupons.forEach(coupon => {
+      if (!coupon.location) {
+        console.warn('Location information missing for coupon:', coupon);
+        return;
+      }
+
+      const position = {
+        lat: coupon.location.lat,
+        lng: coupon.location.lng
+      };
       
-      console.log(`Creating marker for coupon at lat: ${coupon.location.lat}, lng: ${coupon.location.lng}`);
+      console.log('Creating marker for store:', coupon.store_name || coupon.shop_name, 'at position:', position);
       
       const marker = new window.google.maps.Marker({
-        position: { lat: coupon.location.lat, lng: coupon.location.lng },
+        position,
         map: mapInstanceRef.current,
-                  title: coupon.store_name || coupon.shop_name, // shop_name または store_name に対応
+        title: `${coupon.store_name || coupon.shop_name} - ${coupon.title}`,
         icon: {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
             <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="5" width="70" height="70" rx="16" fill="#ff4444" stroke="white" stroke-width="4" stroke-dasharray="${isNearby ? '0' : '5,5'}"/>
+              <rect x="5" y="5" width="70" height="70" rx="16" fill="#ff4444" stroke="white" stroke-width="4"/>
               <text x="40" y="35" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">🛍️</text>
               <text x="40" y="55" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">COUPON</text>
               <text x="40" y="70" text-anchor="middle" fill="white" font-family="Arial" font-size="12">${coupon.current_discount}%</text>
@@ -68,11 +71,11 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
           `),
           scaledSize: new window.google.maps.Size(80, 80),
           anchor: new window.google.maps.Point(40, 75)
-        },
-        animation: isNearby ? window.google.maps.Animation.BOUNCE : undefined
+        }
       });
 
       marker.addListener('click', () => {
+        console.log('Marker clicked:', coupon);
         onCouponClick(coupon);
       });
 
