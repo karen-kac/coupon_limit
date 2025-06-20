@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Coupon, Location } from '../types';
+import ExplosionEffect from './ExplosionEffect';
+import './ExplosionEffect.css';
 
 interface MapViewProps {
   userLocation: Location | null;
@@ -19,6 +21,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [showExplosion, setShowExplosion] = useState(false);
+  const [useLottie, setUseLottie] = useState(true);
 
   // デバッグログを追加
   React.useEffect(() => {
@@ -229,8 +233,54 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }
 
   return (
-    <div className="map-view">
+    <div className="map-view" style={{ position: 'relative' }}>
       <div ref={mapRef} className="map-container" style={{ width: '100%', height: '100%' }} />
+      
+      {/* デバッグ用爆発ボタン */}
+      <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 999 }}>
+        <button
+          onClick={() => setUseLottie(!useLottie)}
+          style={{
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            fontSize: '14px',
+            cursor: 'pointer',
+            marginBottom: '8px',
+            display: 'block',
+            width: '100%',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+        >
+          {useLottie ? '🎬 Lottie' : '💫 パーティクル'}
+        </button>
+        <button
+          onClick={() => setShowExplosion(true)}
+          style={{
+            backgroundColor: '#ff4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '10px 15px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            width: '100%',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+        >
+          💥 爆発テスト
+        </button>
+      </div>
+
+      {/* 爆発エフェクト */}
+      {showExplosion && (
+        <ExplosionEffect 
+          onComplete={() => setShowExplosion(false)} 
+          useLottie={useLottie}
+        />
+      )}
     </div>
   );
 };

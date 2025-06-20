@@ -1,0 +1,231 @@
+/* 爆発エフェクトのメインコンテナ */
+.explosion-effect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+/* 爆発の段階 */
+.explosion-effect.initial {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.explosion-effect.expanding {
+  opacity: 1;
+  transform: scale(1);
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.explosion-effect.fading {
+  opacity: 0;
+  transform: scale(1.5);
+  transition: all 0.7s ease-out;
+}
+
+/* 全画面爆発の場合 */
+.explosion-effect.fullscreen {
+  background: radial-gradient(circle, rgba(255,69,0,0.3) 0%, rgba(255,140,0,0.2) 30%, rgba(255,215,0,0.1) 60%, transparent 100%);
+  border-radius: 0;
+}
+
+.explosion-effect.fullscreen.expanding {
+  background: radial-gradient(circle, rgba(255,69,0,0.6) 0%, rgba(255,140,0,0.4) 30%, rgba(255,215,0,0.2) 60%, transparent 100%);
+}
+
+/* 局所爆発の場合 */
+.explosion-effect.localized {
+  background: radial-gradient(circle, rgba(255,69,0,0.8) 0%, rgba(255,140,0,0.6) 40%, rgba(255,215,0,0.3) 70%, transparent 100%);
+}
+
+/* 爆発の円形エフェクト */
+.explosion-circle {
+  position: absolute;
+  border-radius: 50%;
+  animation: explode 1.5s ease-out forwards;
+}
+
+.explosion-circle-1 {
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(circle, rgba(255,69,0,0.9) 0%, rgba(255,140,0,0.6) 50%, transparent 100%);
+  animation-delay: 0s;
+}
+
+.explosion-circle-2 {
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(255,140,0,0.7) 0%, rgba(255,215,0,0.4) 50%, transparent 100%);
+  animation-delay: 0.1s;
+}
+
+.explosion-circle-3 {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255,215,0,0.5) 0%, rgba(255,255,0,0.2) 50%, transparent 100%);
+  animation-delay: 0.2s;
+}
+
+@keyframes explode {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* 火花エフェクト */
+.explosion-sparks {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.explosion-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(to bottom, #ff4500, #ffa500, transparent);
+  transform-origin: bottom center;
+  transform: 
+    translate(-50%, -100%) 
+    rotate(var(--angle)) 
+    translateY(-30px);
+  animation: sparkFly 1s ease-out forwards;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+
+.explosion-effect.fullscreen .explosion-spark {
+  width: 8px;
+  height: 40px;
+  transform: 
+    translate(-50%, -100%) 
+    rotate(var(--angle)) 
+    translateY(-60px);
+}
+
+@keyframes sparkFly {
+  0% {
+    opacity: 1;
+    transform: 
+      translate(-50%, -100%) 
+      rotate(var(--angle)) 
+      translateY(-10px);
+  }
+  100% {
+    opacity: 0;
+    transform: 
+      translate(-50%, -100%) 
+      rotate(var(--angle)) 
+      translateY(-100px);
+  }
+}
+
+/* 爆発テキスト */
+.explosion-text {
+  position: absolute;
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  animation: textBounce 1.5s ease-out forwards;
+  z-index: 10;
+}
+
+.explosion-effect.fullscreen .explosion-text {
+  font-size: 3rem;
+  text-shadow: 4px 4px 8px rgba(0,0,0,0.8);
+}
+
+@keyframes textBounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* パーティクル爆発エフェクト */
+.explosion-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.explosion-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 60px;
+  animation: centerPulse 0.8s ease-out forwards;
+}
+
+.explosion-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 20px;
+  pointer-events: none;
+  animation: particleExplode 0.8s ease-out forwards;
+}
+
+@keyframes centerPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes particleExplode {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--vx), var(--vy)) scale(0);
+    opacity: 0;
+  }
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .explosion-effect.fullscreen .explosion-text {
+    font-size: 2rem;
+  }
+  
+  .explosion-effect.fullscreen .explosion-spark {
+    width: 6px;
+    height: 30px;
+  }
+}

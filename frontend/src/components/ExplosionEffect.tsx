@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface ExplosionEffectProps {
   onComplete: () => void;
+  useLottie?: boolean;
 }
 
-const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete }) => {
+const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie = true }) => {
   const [particles, setParticles] = useState<Array<{
     id: number;
     x: number;
@@ -17,28 +19,60 @@ const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete }) => {
   }>>([]);
 
   useEffect(() => {
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
-    const emojis = ['💫', '⭐', '✨', '💥', '🎆', '🌟'];
-    
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: 0,
-      y: 0,
-      vx: (Math.random() - 0.5) * 400,
-      vy: (Math.random() - 0.5) * 400,
-      size: Math.random() * 20 + 10,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      emoji: emojis[Math.floor(Math.random() * emojis.length)]
-    }));
-    
-    setParticles(newParticles);
+    // Lottieアニメーション用フォールバックタイマー
+    if (useLottie) {
+      const fallbackTimer = setTimeout(() => {
+        onComplete();
+      }, 1500); // 1.5秒でフォールバック
+      return () => clearTimeout(fallbackTimer);
+    }
 
-    const timer = setTimeout(() => {
-      onComplete();
-    }, 800);
+    if (!useLottie) {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
+      const emojis = ['💫', '⭐', '✨', '💥', '🎆', '🌟'];
+      
+      const newParticles = Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        x: 0,
+        y: 0,
+        vx: (Math.random() - 0.5) * 400,
+        vy: (Math.random() - 0.5) * 400,
+        size: Math.random() * 20 + 10,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        emoji: emojis[Math.floor(Math.random() * emojis.length)]
+      }));
+      
+      setParticles(newParticles);
 
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+      // パーティクルアニメーション用タイマー
+      const timer = setTimeout(() => {
+        onComplete();
+      }, 800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [onComplete, useLottie]);
+
+  if (useLottie) {
+    return (
+      <div className="explosion-container lottie-explosion">
+        <DotLottieReact
+          src={require('../assets/animations/explosion.lottie')}
+          loop={false}
+          autoplay={true}
+          speed={1.3}
+          style={{
+            width: 200,
+            height: 200,
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="explosion-container">

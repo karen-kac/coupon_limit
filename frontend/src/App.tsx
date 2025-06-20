@@ -33,6 +33,16 @@ function MainApp() {
     }
   }, [userLocation]);
 
+  // Separate effect to filter coupons when userCoupons change
+  useEffect(() => {
+    if (!isAuthenticated || userCoupons.length === 0) return;
+    
+    setCoupons(prevCoupons => {
+      const obtainedCouponIds = userCoupons.map(uc => uc.coupon_id);
+      return prevCoupons.filter(coupon => !obtainedCouponIds.includes(coupon.id));
+    });
+  }, [userCoupons, isAuthenticated]);
+
   const loadUserCoupons = useCallback(async () => {
     if (!isAuthenticated) return;
     
