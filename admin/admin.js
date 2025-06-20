@@ -11,13 +11,143 @@ class AdminApp {
             { time_remain_min: 30, rate: 30 },
             { time_remain_min: 10, rate: 50 }
         ];
+        this.notificationContainer = null;
         this.init();
     }
 
     init() {
+        this.createNotificationContainer();
         this.checkAuthStatus();
         this.setupEventListeners();
         this.loadAvailableStores();
+    }
+
+    // Notification system
+    createNotificationContainer() {
+        this.notificationContainer = document.createElement('div');
+        this.notificationContainer.className = 'notification-container';
+        document.body.appendChild(this.notificationContainer);
+    }
+
+    showNotification(message, type = 'success', duration = 4000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        notification.innerHTML = `
+            <span class="notification-icon">${icons[type] || icons.success}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        this.notificationContainer.appendChild(notification);
+
+        // Trigger animation
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
+        // Auto remove
+        if (duration > 0) {
+            setTimeout(() => {
+                this.removeNotification(notification);
+            }, duration);
+        }
+
+        return notification;
+    }
+
+    removeNotification(notification) {
+        if (notification && notification.parentElement) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 400);
+        }
+    }
+
+    // Convenience methods
+    showSuccessNotification(message, duration = 4000) {
+        return this.showNotification(message, 'success', duration);
+    }
+
+    showErrorNotification(message, duration = 6000) {
+        return this.showNotification(message, 'error', duration);
+    }
+
+    showWarningNotification(message, duration = 5000) {
+        return this.showNotification(message, 'warning', duration);
+    }
+
+    showInfoNotification(message, duration = 4000) {
+        return this.showNotification(message, 'info', duration);
+    }
+
+    // Confirmation Modal System
+    showConfirmModal(options = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('confirm-title');
+            const messageEl = document.getElementById('confirm-message');
+            const cancelBtn = document.getElementById('confirm-cancel');
+            const okBtn = document.getElementById('confirm-ok');
+
+            // Set content
+            titleEl.textContent = options.title || '確認';
+            messageEl.textContent = options.message || 'この操作を実行しますか？';
+            cancelBtn.textContent = options.cancelText || 'キャンセル';
+            okBtn.textContent = options.okText || 'OK';
+
+            // Set button style
+            okBtn.className = `btn ${options.danger ? 'btn-danger' : 'btn-primary'}`;
+
+            // Show modal
+            modal.style.display = 'flex';
+
+            // Event handlers
+            const handleCancel = () => {
+                modal.style.display = 'none';
+                cancelBtn.removeEventListener('click', handleCancel);
+                okBtn.removeEventListener('click', handleOk);
+                resolve(false);
+            };
+
+            const handleOk = () => {
+                modal.style.display = 'none';
+                cancelBtn.removeEventListener('click', handleCancel);
+                okBtn.removeEventListener('click', handleOk);
+                resolve(true);
+            };
+
+            cancelBtn.addEventListener('click', handleCancel);
+            okBtn.addEventListener('click', handleOk);
+
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    handleCancel();
+                }
+            });
+        });
+    }
+
+    // Convenience method for dangerous actions
+    showDeleteConfirm(itemName = 'この項目') {
+        return this.showConfirmModal({
+            title: '削除の確認',
+            message: `${itemName}を削除しますか？この操作は取り消せません。`,
+            cancelText: 'キャンセル',
+            okText: '削除',
+            danger: true
+        });
     }
 
     // Authentication methods
@@ -395,7 +525,7 @@ class AdminApp {
             }
 
             this.showAdminApp();
-            alert('アカウントが正常に作成されました！');
+            this.showSuccessNotification('アカウントが正常に作成されました！');
         } catch (error) {
             errorDiv.textContent = error.message;
             errorDiv.style.display = 'block';
@@ -669,7 +799,7 @@ class AdminApp {
             }
             
             if (!this.stores || this.stores.length === 0) {
-                alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
+                this.showWarningNotification('クーポンを作成するには、まず店舗を作成してください。「店舗管理」タブから新しい店舗を追加できます。', 6000);
                 return;
             }
             
@@ -678,7 +808,7 @@ class AdminApp {
         } else {
             // 店舗オーナーの場合は自分の店舗をチェック
             if (!this.admin.linked_store_id && !this.store) {
-                alert('クーポンを作成するには、まず店舗を作成してください。\n「店舗管理」タブから新しい店舗を追加できます。');
+                this.showWarningNotification('クーポンを作成するには、まず店舗を作成してください。「店舗管理」タブから新しい店舗を追加できます。', 6000);
                 return;
             }
             // 店舗選択フィールドを隠す
@@ -789,7 +919,7 @@ class AdminApp {
             
             document.getElementById('coupon-users-modal').style.display = 'flex';
         } catch (error) {
-            alert(error.message);
+            this.showErrorNotification(error.message);
         }
     }
 
@@ -826,7 +956,7 @@ class AdminApp {
 
             this.hideCreateCouponModal();
             this.loadCoupons();
-            alert('クーポンを作成しました！');
+            this.showSuccessNotification('クーポンを作成しました！');
         } catch (error) {
             console.error('Coupon creation error:', error); // デバッグ用
             let errorMessage = '予期しないエラーが発生しました';
@@ -839,7 +969,7 @@ class AdminApp {
                 errorMessage = 'ネットワークエラーまたは接続問題が発生しました';
             }
             
-            alert(errorMessage);
+            this.showErrorNotification(errorMessage);
         }
     }
 
@@ -874,7 +1004,7 @@ class AdminApp {
             
             this.hideCreateStoreModal();
             this.loadStores();
-            alert('店舗を作成しました！');
+            this.showSuccessNotification('店舗を作成しました！');
         } catch (error) {
             console.error('Store creation error:', error); // デバッグ用
             let errorMessage = '予期しないエラーが発生しました';
@@ -887,7 +1017,7 @@ class AdminApp {
                 errorMessage = 'ネットワークエラーまたは接続問題が発生しました';
             }
             
-            alert(errorMessage);
+            this.showErrorNotification(errorMessage);
         }
     }
 
@@ -1025,7 +1155,8 @@ class AdminApp {
     }
 
     async deleteCoupon(couponId) {
-        if (!confirm('このクーポンを削除しますか？')) return;
+        const confirmed = await this.showDeleteConfirm('このクーポン');
+        if (!confirmed) return;
 
         try {
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons/${couponId}`, {
@@ -1035,9 +1166,9 @@ class AdminApp {
             if (!response.ok) throw new Error('クーポンの削除に失敗しました');
 
             this.loadCoupons();
-            alert('クーポンを削除しました');
+            this.showSuccessNotification('クーポンを削除しました');
         } catch (error) {
-            alert(error.message);
+            this.showErrorNotification(error.message);
         }
     }
 
@@ -1045,7 +1176,7 @@ class AdminApp {
     async geocodeAddress() {
         const address = document.getElementById('store-address').value;
         if (!address) {
-            alert('住所を入力してください');
+            this.showWarningNotification('住所を入力してください');
             return;
         }
 
@@ -1060,19 +1191,19 @@ class AdminApp {
                 const result = data[0];
                 document.getElementById('store-latitude').value = parseFloat(result.lat).toFixed(6);
                 document.getElementById('store-longitude').value = parseFloat(result.lon).toFixed(6);
-                alert(`住所から緯度経度を取得しました！\n緯度: ${result.lat}\n経度: ${result.lon}`);
+                this.showSuccessNotification(`住所から緯度経度を取得しました！ 緯度: ${result.lat}, 経度: ${result.lon}`);
             } else {
-                alert('住所から緯度経度を取得できませんでした。手動で入力してください。');
+                this.showErrorNotification('住所から緯度経度を取得できませんでした。手動で入力してください。');
             }
         } catch (error) {
             console.error('Geocoding error:', error);
-            alert('住所の検索中にエラーが発生しました。手動で緯度経度を入力してください。');
+            this.showErrorNotification('住所の検索中にエラーが発生しました。手動で緯度経度を入力してください。');
         }
     }
 
     getCurrentLocation() {
         if (!navigator.geolocation) {
-            alert('お使いのブラウザは位置情報をサポートしていません');
+            this.showWarningNotification('お使いのブラウザは位置情報をサポートしていません');
             return;
         }
 
@@ -1080,10 +1211,10 @@ class AdminApp {
             (position) => {
                 document.getElementById('store-latitude').value = position.coords.latitude;
                 document.getElementById('store-longitude').value = position.coords.longitude;
-                alert('現在位置を取得しました！');
+                this.showSuccessNotification('現在位置を取得しました！');
             },
-            (error) => {
-                alert('位置情報の取得に失敗しました');
+            () => {
+                this.showErrorNotification('位置情報の取得に失敗しました');
             }
         );
     }
