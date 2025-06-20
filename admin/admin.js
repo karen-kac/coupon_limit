@@ -131,11 +131,13 @@ class AdminApp {
             okBtn.addEventListener('click', handleOk);
 
             // Close on background click
-            modal.addEventListener('click', (e) => {
+            const handleBackgroundClick = (e) => {
                 if (e.target === modal) {
                     handleCancel();
+                    modal.removeEventListener('click', handleBackgroundClick);
                 }
-            });
+            };
+	        modal.addEventListener('click', handleBackgroundClick);
         });
     }
 
