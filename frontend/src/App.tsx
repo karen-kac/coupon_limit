@@ -22,14 +22,18 @@ function MainApp() {
   const [showSplash, setShowSplash] = useState(true);
   const POLLING_INTERVAL = 30000; // 30秒ごとに更新
 
-  const loadCoupons = useCallback(async () => {
+  const loadCoupons = useCallback(async (isInitialLoad = false) => {
     if (!userLocation) {
       console.log('loadCoupons: No user location available');
       return;
     }
     
-    console.log('🔄 Loading coupons for location:', userLocation);
-    setLoading(true);
+    console.log('🔄 Loading coupons for location:', userLocation, isInitialLoad ? '(initial load)' : '(background update)');
+    
+    // 初回ロード時のみローディング状態をtrueにする
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     
     try {
       const data = await getCoupons(userLocation.lat, userLocation.lng);
@@ -77,16 +81,20 @@ function MainApp() {
       setCoupons(mockCoupons);
       setError('クーポンの取得に失敗しましたが、テスト用データを表示しています');
     } finally {
-      setLoading(false);
+      // 初回ロード時のみローディング状態をfalseにする
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   }, [userLocation]);
 
-  const loadUserCoupons = useCallback(async () => {
+  const loadUserCoupons = useCallback(async (isInitialLoad = false) => {
     if (!isAuthenticated) return;
     
     try {
       const data = await getUserCoupons();
       setUserCoupons(data);
+      console.log('✅ User coupons loaded:', data.length, 'items', isInitialLoad ? '(initial load)' : '(background update)');
     } catch (error) {
       console.error('Error loading user coupons:', error);
     }
@@ -119,8 +127,8 @@ function MainApp() {
   useEffect(() => {
     if (!userLocation || !isAuthenticated) return;
 
-    loadCoupons();
-    loadUserCoupons();
+    loadCoupons(true); // 初回ロード時はローディング表示
+    loadUserCoupons(true);
   }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
 
   // ポーリング設定（別のuseEffect）

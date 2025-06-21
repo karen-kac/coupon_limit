@@ -219,48 +219,68 @@ async def obtain_coupon(
 ):
     """Obtain a coupon if user is within range"""
     
-    # Update discount rates
-    update_coupon_discounts(db)
-    
-    # Get coupon with store info
-    coupon_data = db.query(Coupon, Store).join(
-        Store, Coupon.store_id == Store.id
-    ).filter(Coupon.id == request.coupon_id).first()
-    
-    if not coupon_data:
-        raise HTTPException(status_code=404, detail="クーポンが見つかりません")
-    
-    coupon, store = coupon_data
-    
-    # Check if coupon is still active
-    if coupon.active_status != "active" or coupon.end_time <= datetime.now():
-        raise HTTPException(status_code=400, detail="このクーポンは既に期限切れです")
-    
-    # Check if user already has this coupon
-    existing_user_coupon = db.query(UserCoupon).filter(
-        UserCoupon.user_id == current_user.id,
-        UserCoupon.coupon_id == request.coupon_id
-    ).first()
-    
-    if existing_user_coupon:
-        raise HTTPException(status_code=400, detail="このクーポンは既に取得済みです")
-    
-    # Check distance (20m radius for obtaining)
-    distance = calculate_distance(
-        request.user_location.lat, 
-        request.user_location.lng,
-        store.latitude, 
-        store.longitude
-    )
-    
-    if distance > 20:  # 20 meters
-        raise HTTPException(
-            status_code=400, 
-            detail=f"店舗から20m以内である必要があります（現在{distance:.1f}m）"
-        )
-    
-    # Create user coupon
     try:
+        print(f"DEBUG: Processing coupon get request for coupon_id: {request.coupon_id}")
+        print(f"DEBUG: User location: {request.user_location}")
+        print(f"DEBUG: Current user ID: {current_user.id}")
+        
+        # Update discount rates
+        update_coupon_discounts(db)
+        
+        # Get coupon with store info
+        coupon_data = db.query(Coupon, Store).join(
+            Store, Coupon.store_id == Store.id
+        ).filter(Coupon.id == request.coupon_id).first()
+        
+        print(f"DEBUG: Coupon data found: {coupon_data is not None}")
+        
+        if not coupon_data:
+            raise HTTPException(status_code=404, detail="クーポンが見つかりません")
+        
+        coupon, store = coupon_data
+        print(f"DEBUG: Coupon ID: {coupon.id}, Store: {store.name}")
+        
+        # Check if coupon is still active
+        now = datetime.now()
+        coupon_end_time = coupon.end_time
+        
+        # Handle timezone-aware vs naive datetime comparison
+        if coupon_end_time.tzinfo is not None:
+            # If coupon time is timezone-aware, make now timezone-aware too
+            from datetime import timezone
+            now = now.replace(tzinfo=timezone.utc)
+        elif now.tzinfo is not None:
+            # If now is timezone-aware but coupon is naive, make coupon timezone-aware
+            coupon_end_time = coupon_end_time.replace(tzinfo=timezone.utc)
+        
+        if coupon.active_status != "active" or coupon_end_time <= now:
+            raise HTTPException(status_code=400, detail="このクーポンは既に期限切れです")
+        
+        # Check if user already has this coupon
+        existing_user_coupon = db.query(UserCoupon).filter(
+            UserCoupon.user_id == current_user.id,
+            UserCoupon.coupon_id == request.coupon_id
+        ).first()
+        
+        if existing_user_coupon:
+            raise HTTPException(status_code=400, detail="このクーポンは既に取得済みです")
+        
+        # Check distance (20m radius for obtaining)
+        distance = calculate_distance(
+            request.user_location.lat, 
+            request.user_location.lng,
+            store.latitude, 
+            store.longitude
+        )
+        
+        print(f"DEBUG: Distance to store: {distance}m")
+        if distance > 20:  # 20 meters
+            raise HTTPException(
+                status_code=400, 
+                detail=f"店舗から20m以内である必要があります（現在{distance:.1f}m）"
+            )
+        
+        # Create user coupon
         user_coupon = UserCoupon(
             user_id=current_user.id,
             coupon_id=coupon.id,
@@ -272,6 +292,7 @@ async def obtain_coupon(
         db.commit()
         db.refresh(user_coupon)
         
+        print(f"DEBUG: Successfully created user coupon")
         return {
             "message": "クーポンを取得しました！",
             "coupon_id": coupon.id,
@@ -279,7 +300,12 @@ async def obtain_coupon(
             "shop_name": store.name
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"DEBUG: Unexpected error in obtain_coupon: {e}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,

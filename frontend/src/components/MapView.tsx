@@ -192,27 +192,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
 
     
     console.log(`✅ Total markers created: ${markersRef.current.length}`);
-    
-    // Center map if there are markers and no user interaction yet
-    if (markersRef.current.length > 0 && userLocation) {
-      try {
-        const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(new window.google.maps.LatLng(userLocation.lat, userLocation.lng));
-        markersRef.current.forEach(marker => {
-          bounds.extend(marker.getPosition());
-        });
-        mapInstanceRef.current.fitBounds(bounds);
-        
-        // Set maximum zoom level
-        window.google.maps.event.addListenerOnce(mapInstanceRef.current, 'bounds_changed', () => {
-          if (mapInstanceRef.current.getZoom() > 16) {
-            mapInstanceRef.current.setZoom(16);
-          }
-        });
-      } catch (error) {
-        console.warn('Failed to fit bounds:', error);
-      }
-    }
+    console.log('🔄 Markers updated (map view unchanged)');
 
   }, [coupons, onCouponClick, userLocation]);
 
