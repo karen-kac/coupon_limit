@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import CouponHistoryPopup from './CouponHistoryPopup';
 
 const Settings: React.FC = () => {
   const { user, logout } = useAuth();
+  const [showHistoryPopup, setShowHistoryPopup] = useState(false);
 
   return (
     <div style={{ 
@@ -110,6 +112,66 @@ const Settings: React.FC = () => {
           🚪 ログアウト
         </button>
       </div>
+
+      <div style={{ 
+        backgroundColor: 'white', 
+        padding: '24px', 
+        borderRadius: '12px',
+        marginBottom: '16px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+      }}>
+        <h3 style={{ 
+          marginBottom: '20px', 
+          color: '#333',
+          fontSize: '18px',
+          fontWeight: '600',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
+        }}>
+          📋 クーポン履歴
+        </h3>
+        
+        <p style={{ 
+          fontSize: '14px', 
+          color: '#666', 
+          marginBottom: '16px',
+          lineHeight: '1.5'
+        }}>
+          使用済み・期限切れのクーポンの履歴を確認できます
+        </p>
+        
+        <button
+          onClick={() => setShowHistoryPopup(true)}
+          style={{
+            background: 'white',
+            color: '#e6543a',
+            border: '2px solid #e6543a',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            width: '100%',
+            transition: 'all 0.2s ease',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = '#e6543a';
+            e.currentTarget.style.color = 'white';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'white';
+            e.currentTarget.style.color = '#e6543a';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          📈 クーポン履歴を見る
+        </button>
+      </div>
+
+      {showHistoryPopup && (
+        <CouponHistoryPopup onClose={() => setShowHistoryPopup(false)} />
+      )}
     </div>
   );
 };
