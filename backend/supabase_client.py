@@ -26,26 +26,34 @@ def get_database_url() -> str:
     if postgres_url:
         return postgres_url
     
-    # No SQLite fallback - always use PostgreSQL/Supabase
-    raise ValueError("No PostgreSQL database URL found. Please set SUPABASE_DATABASE_URL or DATABASE_URL environment variable.")
+    # SQLite fallback for development
+    return "sqlite:///coupon_app.db"
 
 def create_database_engine():
     """Create database engine with appropriate configuration"""
     database_url = get_database_url()
     
-    # Always use PostgreSQL/Supabase - no SQLite support
-    # Handle postgres:// vs postgresql:// URL schemes
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
-    engine = create_engine(
-        database_url,
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        echo=os.getenv("SQL_DEBUG", "false").lower() == "true"
-    )
+    # Handle different database types
+    if database_url.startswith("sqlite://"):
+        # SQLite configuration for development
+        engine = create_engine(
+            database_url,
+            echo=os.getenv("SQL_DEBUG", "false").lower() == "true"
+        )
+    else:
+        # PostgreSQL/Supabase configuration
+        # Handle postgres:// vs postgresql:// URL schemes
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        
+        engine = create_engine(
+            database_url,
+            pool_size=10,
+            max_overflow=20,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            echo=os.getenv("SQL_DEBUG", "false").lower() == "true"
+        )
     
     return engine
 

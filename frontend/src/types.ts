@@ -14,9 +14,16 @@ export interface Coupon {
   time_remaining_minutes: number;
   distance_meters?: number;
   description?: string;
-  source?: string; // "internal" or "external"
+  source?: string; // "internal", "external", "hotpepper", "kumapon"
   external_url?: string; // For external coupons
+  external_id?: string; // For external coupons
   image_url?: string; // For external coupons
+  // Hot Pepper specific fields
+  genre?: string;
+  budget?: string;
+  access?: string;
+  open_time?: string;
+  close_time?: string;
 }
 
 export interface UserCoupon {

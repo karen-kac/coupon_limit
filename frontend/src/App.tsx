@@ -12,7 +12,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 function MainApp() {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('mypage');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
@@ -22,21 +22,61 @@ function MainApp() {
   const [showSplash, setShowSplash] = useState(true);
 
   const loadCoupons = useCallback(async () => {
-    if (!userLocation) return;
+    if (!userLocation) {
+      console.log('loadCoupons: No user location available');
+      return;
+    }
+    
+    console.log('🔄 Loading coupons for location:', userLocation);
+    setLoading(true);
     
     try {
-      console.log('Loading coupons for location:', userLocation);
       const data = await getCoupons(userLocation.lat, userLocation.lng);
-      console.log('Loaded coupons:', data);
+      console.log('✅ Successfully loaded coupons:', data.length, 'items');
+      console.log('First few coupons:', data.slice(0, 3));
+      
       setCoupons(data);
-      // Clear any previous errors on successful load
       setError(null);
     } catch (error) {
-      console.error('Error loading coupons:', error);
-      // Don't set error state - getCoupons now handles fallbacks internally
-      // Just set empty array to allow map to still display
-      setCoupons([]);
-      console.log('Set empty coupons array due to error');
+      console.error('❌ Error loading coupons:', error);
+      
+      // Still try to set mock data as fallback
+      const mockCoupons = [
+        {
+          id: 'fallback_1',
+          store_name: 'テスト店舗 1',
+          shop_name: 'テスト店舗 1',
+          title: 'フォールバック クーポン 30% OFF',
+          current_discount: 30,
+          location: { lat: userLocation.lat + 0.001, lng: userLocation.lng + 0.001 },
+          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          time_remaining_minutes: 120,
+          distance_meters: 150,
+          description: 'API取得に失敗したためのテスト用クーポンです',
+          source: 'external' as const,
+          external_url: 'https://example.com'
+        },
+        {
+          id: 'fallback_2',
+          store_name: 'テスト店舗 2',
+          shop_name: 'テスト店舗 2',
+          title: 'フォールバック クーポン 50% OFF',
+          current_discount: 50,
+          location: { lat: userLocation.lat - 0.001, lng: userLocation.lng - 0.001 },
+          expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+          time_remaining_minutes: 180,
+          distance_meters: 250,
+          description: 'API取得に失敗したためのテスト用クーポンです',
+          source: 'external' as const,
+          external_url: 'https://example.com'
+        }
+      ];
+      
+      console.log('🔄 Using fallback mock coupons:', mockCoupons.length);
+      setCoupons(mockCoupons);
+      setError('クーポンの取得に失敗しましたが、テスト用データを表示しています');
+    } finally {
+      setLoading(false);
     }
   }, [userLocation]);
 
@@ -62,10 +102,25 @@ function MainApp() {
 
   useEffect(() => {
     if (userLocation) {
+      console.log('📍 User location updated, loading data...');
       loadCoupons();
       loadUserCoupons();
     }
   }, [userLocation, loadCoupons, loadUserCoupons]);
+
+  // Debug effect to monitor coupon state changes
+  useEffect(() => {
+    console.log('🔄 Coupons state updated:', coupons.length, 'coupons');
+    if (coupons.length > 0) {
+      console.log('📍 Sample coupon locations:', coupons.slice(0, 3).map(c => ({
+        id: c.id,
+        name: c.store_name || c.shop_name,
+        location: c.location,
+        source: c.source,
+        distance: c.distance_meters
+      })));
+    }
+  }, [coupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {

@@ -60,15 +60,18 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
   };
 
   const handleGetCoupon = () => {
-    if (coupon.source === 'external') {
+    if (coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') {
       // For external coupons, open the external URL
       let externalUrl = coupon.external_url;
       
       // Generate fallback URL if not provided
-      if (!externalUrl && coupon.id.startsWith('kumapon_')) {
+      if (!externalUrl && (coupon.source === 'kumapon' || coupon.id.startsWith('kumapon_'))) {
         const couponId = coupon.id.replace('kumapon_', '');
         const issueDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         externalUrl = `https://kumapon.jp/deals/${issueDate}kpd${couponId}`;
+      } else if (!externalUrl && (coupon.source === 'hotpepper' || coupon.id.startsWith('hotpepper_'))) {
+        const shopId = coupon.external_id || coupon.id.replace('hotpepper_', '');
+        externalUrl = `https://www.hotpepper.jp/strJ${shopId}/`;
       }
       
       if (externalUrl) {
@@ -98,8 +101,14 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
         <div className="popup-header">
           <h3>{coupon.store_name || coupon.shop_name}</h3>
           <div className="header-info">
+            {coupon.source === 'hotpepper' && (
+              <span className="hotpepper-badge">ホットペッパー 🍽️</span>
+            )}
             {coupon.source === 'external' && (
               <span className="external-badge">外部クーポン 🌐</span>
+            )}
+            {coupon.source === 'kumapon' && (
+              <span className="external-badge">くまポン 🐻</span>
             )}
             {distance !== null && (
               <span className={`distance ${isNearby ? 'nearby' : 'far'}`}>
@@ -124,6 +133,29 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
             </div>
           )}
           
+          {coupon.source === 'hotpepper' && (
+            <div className="hotpepper-details">
+              {(coupon as any).genre && (
+                <div className="detail-item">
+                  <span className="detail-label">ジャンル:</span>
+                  <span className="detail-value">{(coupon as any).genre}</span>
+                </div>
+              )}
+              {(coupon as any).budget && (
+                <div className="detail-item">
+                  <span className="detail-label">予算:</span>
+                  <span className="detail-value">{(coupon as any).budget}</span>
+                </div>
+              )}
+              {(coupon as any).access && (
+                <div className="detail-item">
+                  <span className="detail-label">アクセス:</span>
+                  <span className="detail-value">{(coupon as any).access}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="time-remaining">
             残り {timeRemaining}
           </div>
@@ -145,19 +177,23 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
           </div>
           
           <button
-            className={`get-btn ${coupon.source === 'external' ? 'external' : (isNearby ? 'enabled' : 'disabled')}`}
+            className={`get-btn ${(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') ? 'external' : (isNearby ? 'enabled' : 'disabled')}`}
             onClick={handleGetCoupon}
-            disabled={coupon.source !== 'external' && !isNearby}
+            disabled={!(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') && !isNearby}
           >
             <span className="btn-text">
-              {coupon.source === 'external' 
-                ? 'クーポンサイトを開く' 
+              {coupon.source === 'hotpepper' 
+                ? 'ホットペッパーで確認'
+                : coupon.source === 'external' || coupon.source === 'kumapon'
+                ? 'クーポンサイトを開く'
                 : (isNearby ? 'クーポンを取得' : 'クーポンを取得')
               }
             </span>
             <span className="btn-distance">
-              {coupon.source === 'external' 
-                ? '外部サイトで確認' 
+              {coupon.source === 'hotpepper' 
+                ? 'お店の詳細とクーポン'
+                : coupon.source === 'external' || coupon.source === 'kumapon'
+                ? '外部サイトで確認'
                 : (isNearby ? '取得可能' : '（300m以内で取得可能）')
               }
             </span>
