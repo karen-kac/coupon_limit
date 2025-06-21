@@ -56,6 +56,9 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       
       console.log('Creating marker for store:', coupon.store_name || coupon.shop_name, 'at position:', position);
       
+      // Calculate if user is nearby (within 20m)
+      const isNearby = userLocation && coupon.distance_meters ? coupon.distance_meters <= 20 : false;
+      
       const marker = new window.google.maps.Marker({
         position,
         map: mapInstanceRef.current,
@@ -81,7 +84,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
 
       markersRef.current.push(marker);
     });
-  }, [coupons, onCouponClick]);
+  }, [coupons, onCouponClick, userLocation]);
 
   const initializeMap = useCallback(() => {
     console.log('initializeMap called');

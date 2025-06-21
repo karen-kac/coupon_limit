@@ -64,9 +64,7 @@ export const getCoupons = async (lat: number, lng: number, radius: number = 5000
         // --- ここからがaxiosへの変更箇所 ---
 
         // 変更点 1: axios用の設定オブジェクトを作成
-        const config: any = {
-          params: endpoint.params // URLに付与するパラメータ
-        };
+        const config: any = {};
 
         // 変更点 2: 認証が必要な場合にヘッダーを追加
         if (endpoint.requiresAuth) {
@@ -129,6 +127,10 @@ export const getCoupons = async (lat: number, lng: number, radius: number = 5000
         continue;
       }
     }
+    
+    // If all endpoints fail, return empty array
+    console.warn('All endpoints failed, returning empty coupon array');
+    return [];
   } catch (error) {
     console.error('Error fetching coupons:', error);
     throw error;
