@@ -511,10 +511,11 @@ async def create_coupon(
 @router.delete("/coupons/{coupon_id}")
 async def delete_coupon(
     coupon_id: str,
+    hard_delete: bool = False,
     admin: Admin = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a coupon"""
+    """Delete a coupon (soft delete by default, hard delete if specified)"""
     
     coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not coupon:
@@ -527,12 +528,31 @@ async def delete_coupon(
             detail="自分の店舗のクーポンのみ削除できます"
         )
     
+    # Only super_admin can perform hard delete
+    if hard_delete and admin.role != "super_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="完全削除はスーパー管理者のみ実行できます"
+        )
+    
     try:
-        # Soft delete by setting status to expired
-        coupon.active_status = "expired"
-        db.commit()
-        
-        return {"message": "クーポンを削除しました", "coupon_id": coupon_id}
+        if hard_delete:
+            # Hard delete - completely remove from database
+            # First delete related user_coupons
+            from models import UserCoupon
+            db.query(UserCoupon).filter(UserCoupon.coupon_id == coupon_id).delete()
+            
+            # Then delete the coupon itself
+            db.delete(coupon)
+            db.commit()
+            
+            return {"message": "クーポンを完全削除しました", "coupon_id": coupon_id, "hard_delete": True}
+        else:
+            # Soft delete by setting status to expired
+            coupon.active_status = "expired"
+            db.commit()
+            
+            return {"message": "クーポンを削除しました", "coupon_id": coupon_id, "hard_delete": False}
         
     except Exception as e:
         db.rollback()
