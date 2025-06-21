@@ -83,7 +83,7 @@ body {
 .content {
   flex: 1;
   position: relative;
-  padding-bottom: 70px;
+  overflow: hidden;
 }
 
 /* Map View */
@@ -134,9 +134,10 @@ body {
 
 /* MyPage View */
 .mypage-view {
-  height: 100%;
+  height: calc(100vh - 70px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .page-header {
@@ -146,6 +147,7 @@ body {
   padding: 20px;
   background: white;
   border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
 }
 
 .page-header h1 {
@@ -172,6 +174,7 @@ body {
   display: flex;
   background: white;
   border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
 }
 
 .filter-tab {
@@ -197,6 +200,8 @@ body {
   padding: 16px;
   overflow-y: auto;
   background: #f8f8f8;
+  height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .coupon-item {
