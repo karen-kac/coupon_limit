@@ -9,15 +9,17 @@ interface MyPageProps {
 }
 
 const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
-  const [filter, setFilter] = useState<'all' | 'unused' | 'used'>('all');
+  const [activeTab, setActiveTab] = useState<'my-coupons' | 'favorites'>('my-coupons');
   const [loading, setLoading] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<UserCoupon | null>(null);
 
-  const filteredCoupons = coupons.filter(coupon => {
-    if (filter === 'unused') return !coupon.is_used;
-    if (filter === 'used') return coupon.is_used;
-    return true;
-  });
+  const sortedCoupons = [...coupons]
+    .sort((a, b) => {
+      if (a.is_used !== b.is_used) {
+        return a.is_used ? 1 : -1;
+      }
+      return new Date(b.obtained_at).getTime() - new Date(a.obtained_at).getTime();
+    });
 
   const handleUseCoupon = async (coupon: UserCoupon) => {
     if (coupon.is_used) return;
@@ -52,46 +54,28 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
       
       <div className="filter-tabs">
         <button
-          className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
-          onClick={() => setFilter('all')}
+          className={`filter-tab ${activeTab === 'my-coupons' ? 'active' : ''}`}
+          onClick={() => setActiveTab('my-coupons')}
         >
-          すべて ({coupons.length})
+          マイクーポン ({coupons.length})
         </button>
         <button
-          className={`filter-tab ${filter === 'unused' ? 'active' : ''}`}
-          onClick={() => setFilter('unused')}
+          className={`filter-tab ${activeTab === 'favorites' ? 'active' : ''}`}
+          onClick={() => setActiveTab('favorites')}
         >
-          未使用 ({coupons.filter(c => !c.is_used).length})
-        </button>
-        <button
-          className={`filter-tab ${filter === 'used' ? 'active' : ''}`}
-          onClick={() => setFilter('used')}
-        >
-          使用済み ({coupons.filter(c => c.is_used).length})
+          お気に入り (0)
         </button>
       </div>
 
       <div className="coupon-list">
-        {filteredCoupons.length === 0 ? (
-          <div className="empty-state">
-            {filter === 'all' ? (
-              <>
-                <p>まだクーポンがありません</p>
-                <p>マップでクーポンを探してみましょう！</p>
-              </>
-            ) : filter === 'unused' ? (
-              <>
-                <p>未使用のクーポンがありません</p>
-                <p>新しいクーポンを取得してみましょう！</p>
-              </>
-            ) : (
-              <>
-                <p>使用済みのクーポンがありません</p>
-              </>
-            )}
-          </div>
-        ) : (
-          filteredCoupons.map(coupon => (
+        {activeTab === 'my-coupons' ? (
+          sortedCoupons.length === 0 ? (
+            <div className="empty-state">
+              <p>まだクーポンがありません</p>
+              <p>マップでクーポンを探してみましょう！</p>
+            </div>
+          ) : (
+            sortedCoupons.map(coupon => (
             <div
               key={coupon.id}
               className={`coupon-item ${coupon.is_used ? 'used' : ''}`}
@@ -125,6 +109,11 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
               )}
             </div>
           ))
+        )) : (
+          <div className="empty-state">
+            <p>お気に入り機能は準備中です</p>
+            <p>外部クーポンをお気に入りに追加できるようになります</p>
+          </div>
         )}
       </div>
       
