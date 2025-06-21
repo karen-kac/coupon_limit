@@ -60,7 +60,15 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
   };
 
   const handleGetCoupon = () => {
-    if (isNearby) {
+    if (coupon.source === 'external') {
+      // For external coupons, open the external URL
+      if (coupon.external_url) {
+        window.open(coupon.external_url, '_blank');
+      } else {
+        alert('このクーポンの詳細ページは利用できません');
+      }
+    } else if (isNearby) {
+      // For internal coupons, use the normal flow
       onGetCoupon(coupon);
     }
   };
@@ -80,11 +88,16 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
         
         <div className="popup-header">
           <h3>{coupon.store_name || coupon.shop_name}</h3>
-          {distance !== null && (
-            <span className={`distance ${isNearby ? 'nearby' : 'far'}`}>
-              {distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`}
-            </span>
-          )}
+          <div className="header-info">
+            {coupon.source === 'external' && (
+              <span className="external-badge">外部クーポン 🌐</span>
+            )}
+            {distance !== null && (
+              <span className={`distance ${isNearby ? 'nearby' : 'far'}`}>
+                {distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`}
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="popup-body">
@@ -95,6 +108,12 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
           <div className="coupon-title">
             {coupon.title}
           </div>
+          
+          {coupon.description && (
+            <div className="coupon-description">
+              {coupon.description}
+            </div>
+          )}
           
           <div className="time-remaining">
             残り {timeRemaining}
@@ -117,15 +136,21 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
           </div>
           
           <button
-            className={`get-btn ${isNearby ? 'enabled' : 'disabled'}`}
+            className={`get-btn ${coupon.source === 'external' ? 'external' : (isNearby ? 'enabled' : 'disabled')}`}
             onClick={handleGetCoupon}
-            disabled={!isNearby}
+            disabled={coupon.source !== 'external' && !isNearby}
           >
             <span className="btn-text">
-              {isNearby ? 'クーポンを取得' : 'クーポンを取得'}
+              {coupon.source === 'external' 
+                ? 'クーポンサイトを開く' 
+                : (isNearby ? 'クーポンを取得' : 'クーポンを取得')
+              }
             </span>
             <span className="btn-distance">
-              {isNearby ? '取得可能' : '（300m以内で取得可能）'}
+              {coupon.source === 'external' 
+                ? '外部サイトで確認' 
+                : (isNearby ? '取得可能' : '（300m以内で取得可能）')
+              }
             </span>
           </button>
         </div>

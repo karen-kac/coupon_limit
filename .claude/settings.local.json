@@ -5,7 +5,13 @@
       "Bash(git commit:*)",
       "Bash(mkdir:*)",
       "Bash(npx create-react-app:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:allcoupon.jp)",
+      "WebFetch(domain:kumapon.jp)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

@@ -76,6 +76,42 @@ async def root():
         "health": "/api/health"
     }
 
+@app.get("/api/coupons/simple-test")
+async def simple_coupon_test():
+    """Simple test endpoint without database dependency"""
+    from datetime import datetime, timedelta
+    
+    mock_coupons = [
+        {
+            "id": "test_tokyo_1",
+            "shop_name": "東京駅周辺店舗",
+            "title": "テスト用クーポン 40% OFF",
+            "current_discount": 40,
+            "location": {"lat": 35.6812, "lng": 139.7671},
+            "expires_at": (datetime.now() + timedelta(hours=2)).isoformat(),
+            "time_remaining_minutes": 120,
+            "distance_meters": 100,
+            "description": "これは動作確認用のテストクーポンです",
+            "source": "external",
+            "store_name": "東京駅周辺店舗"
+        },
+        {
+            "id": "test_shibuya_1", 
+            "shop_name": "渋谷テスト店",
+            "title": "テスト用クーポン 30% OFF",
+            "current_discount": 30,
+            "location": {"lat": 35.6598, "lng": 139.7006},
+            "expires_at": (datetime.now() + timedelta(hours=3)).isoformat(),
+            "time_remaining_minutes": 180,
+            "distance_meters": 500,
+            "description": "これは動作確認用のテストクーポンです",
+            "source": "external", 
+            "store_name": "渋谷テスト店"
+        }
+    ]
+    
+    return {"external_coupons": mock_coupons, "count": len(mock_coupons)}
+
 # Public endpoints for registration
 class PublicStoreResponse(BaseModel):
     id: str
@@ -119,3 +155,8 @@ def handler(request, context):
 # Export app for Vercel
 def main():
     return app
+
+# For local development
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
