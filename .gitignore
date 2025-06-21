@@ -33,3 +33,4 @@ frontend/node_modules/
 # その他
 .DS_Store
 venv/
+.claude/*
