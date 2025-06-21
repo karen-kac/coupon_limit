@@ -5,7 +5,7 @@ export interface Location {
 
 export interface Coupon {
   id: string;
-  store_name: string; // バックエンドは店舗検索では store_name を返すがUserCouponでは shop_name
+  store_name?: string; // バックエンドは店舗検索では store_name を返すがUserCouponでは shop_name
   shop_name?: string; // UserCouponで使用される代替フィールド
   title: string;
   current_discount: number;
@@ -13,6 +13,10 @@ export interface Coupon {
   expires_at: string;
   time_remaining_minutes: number;
   distance_meters?: number;
+  description?: string;
+  source?: string; // "internal" or "external"
+  external_url?: string; // For external coupons
+  image_url?: string; // For external coupons
 }
 
 export interface UserCoupon {
