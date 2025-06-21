@@ -9,6 +9,7 @@ from datetime import datetime
 import math
 import sys
 import os
+import logging
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,11 +17,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from supabase_client import get_db
 from models import User, Store, Coupon, UserCoupon
 from auth import get_current_user
-import sys
-import os
 # Add parent directory to path to import external_coupons
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from external_coupons import ExternalCouponService, get_mock_external_coupons
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -274,10 +276,10 @@ async def obtain_coupon(
         )
         
         print(f"DEBUG: Distance to store: {distance}m")
-        if distance > 20:  # 20 meters
+        if distance > 200:  # 20 meters
             raise HTTPException(
                 status_code=400, 
-                detail=f"店舗から20m以内である必要があります（現在{distance:.1f}m）"
+                detail=f"店舗から200m以内である必要があります（現在{distance:.1f}m）"
             )
         
         # Create user coupon
