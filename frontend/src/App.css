@@ -583,6 +583,13 @@ body {
   margin: 0.5rem 0 0;
 }
 
+/* Desktop only - hide on mobile */
+@media (max-width: 480px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

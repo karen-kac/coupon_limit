@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import MapView from './components/MapView';
 import MyPage from './components/MyPage';
+import Settings from './components/Settings';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
 import { getCoupons, getUserCoupons, getCoupon } from './services/api';
@@ -12,7 +13,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 function MainApp() {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'map' | 'mypage'>('mypage');
+  const [activeTab, setActiveTab] = useState<'map' | 'mypage' | 'settings'>('mypage');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
@@ -233,20 +234,37 @@ function MainApp() {
       <header className="app-header" style={{ position: 'relative' }}>
         <h1>COUPON LIMIT</h1>
         <p className="app-description">近くのクーポンを探して、お得にショッピング！</p>
-        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ color: '#1976d2', fontWeight: 'bold' }}>
+        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 12 }} className="desktop-only">
+          <span style={{ 
+            color: '#e6543a', 
+            fontWeight: '600',
+            fontSize: '14px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
+          }}>
             こんにちは、{user?.name}さん
           </span>
           <button 
             onClick={logout}
             style={{ 
-              background: 'none', 
-              border: '1px solid #1976d2', 
-              color: '#1976d2', 
-              padding: '4px 8px', 
-              borderRadius: '4px', 
+              background: 'linear-gradient(135deg, #ff4444 0%, #e6543a 100%)', 
+              border: 'none', 
+              color: 'white', 
+              padding: '8px 16px', 
+              borderRadius: '8px', 
               cursor: 'pointer',
-              fontWeight: 'bold'
+              fontWeight: '600',
+              fontSize: '14px',
+              boxShadow: '0 2px 6px rgba(255,68,68,0.3)',
+              transition: 'all 0.2s ease',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(255,68,68,0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 6px rgba(255,68,68,0.3)';
             }}
           >
             ログアウト
@@ -269,6 +287,13 @@ function MainApp() {
           <span className="icon">👤</span>
           <span>マイページ</span>
         </button>
+        <button
+          className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          <span className="icon">⚙️</span>
+          <span>設定</span>
+        </button>
       </nav>
 
       <main className="content">
@@ -279,11 +304,13 @@ function MainApp() {
             onCouponClick={setSelectedCoupon}
             error={error}
           />
-        ) : (
+        ) : activeTab === 'mypage' ? (
           <MyPage
             coupons={userCoupons}
             onRefresh={loadUserCoupons}
           />
+        ) : (
+          <Settings />
         )}
       </main>
 
