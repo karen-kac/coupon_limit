@@ -26,13 +26,19 @@ function MainApp() {
     if (!userLocation) return;
     
     try {
+
       console.log('Fetching coupons for location:', userLocation);
       const data = await getCoupons(userLocation.lat, userLocation.lng);
       console.log('Received coupons from API:', data);
       setCoupons(data);
+      // Clear any previous errors on successful load
+      setError(null);
     } catch (error) {
       console.error('Error loading coupons:', error);
-      setError('Failed to load coupons');
+      // Don't set error state - getCoupons now handles fallbacks internally
+      // Just set empty array to allow map to still display
+      setCoupons([]);
+      console.log('Set empty coupons array due to error');
     }
   }, [userLocation]);
 

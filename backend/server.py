@@ -24,9 +24,13 @@ from auth import (
     create_access_token, get_current_user, get_current_admin, 
     get_current_user_optional, get_current_admin_optional, ACCESS_TOKEN_EXPIRE_MINUTES
 )
+# Import external coupons service
+from external_coupons import ExternalCouponService, get_mock_external_coupons
 
 # Import admin routes
 from api.admin_routes import router as admin_router
+# Import coupon routes
+from api.coupon_routes import router as coupon_router
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
@@ -47,6 +51,8 @@ app.add_middleware(
 
 # Include admin routes
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+# Include coupon routes
+app.include_router(coupon_router, prefix="/api/coupons", tags=["coupons"])
 
 # Pydantic models for requests/responses
 class UserRegisterRequest(BaseModel):
@@ -103,6 +109,8 @@ class CouponResponse(BaseModel):
     expires_at: datetime
     time_remaining_minutes: int
     distance_meters: Optional[float] = None
+    source: Optional[str] = "internal"  # "internal" or "external"
+    external_url: Optional[str] = None  # External coupon URL
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -243,7 +251,7 @@ async def get_coupons(
     lat: float, 
     lng: float, 
     radius: int = 1000, 
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> List[CouponResponse]:
     """Get all active coupons within radius"""
@@ -254,11 +262,18 @@ async def get_coupons(
         geo_repo = GeoPointRepository(db)
         
         # Track user location if authenticated
-        if current_user:
-            try:
-                geo_repo.add_location_point(current_user.id, lat, lng)
-            except Exception as e:
-                print(f"Failed to track location: {e}")
+        try:
+            geo_repo.add_location_point(current_user.id, lat, lng)
+        except Exception as e:
+            print(f"Failed to track location: {e}")
+        
+        # Get user's already obtained coupon IDs
+        user_coupon_repo = EnhancedUserCouponRepository(db)
+        user_obtained_coupons = db.query(UserCoupon.coupon_id).filter(
+            UserCoupon.user_id == current_user.id
+        ).all()
+        obtained_coupon_ids = {str(coupon_id[0]) for coupon_id in user_obtained_coupons}
+        print(f"User has already obtained {len(obtained_coupon_ids)} coupons: {obtained_coupon_ids}")
         
         user_location = Location(lat=lat, lng=lng)
         active_coupons = coupon_repo.get_active_coupons()
@@ -267,6 +282,11 @@ async def get_coupons(
         
         for coupon in active_coupons:
             try:
+                # Skip if user has already obtained this coupon
+                if str(coupon.id) in obtained_coupon_ids:
+                    print(f"Skipping already obtained coupon: {coupon.id}")
+                    continue
+                    
                 print(f"Processing coupon: {coupon.id} for store: {coupon.store_id}")
                 # Get store information
                 store = store_repo.get_store_by_id(coupon.store_id)
@@ -311,14 +331,63 @@ async def get_coupons(
                         location=Location(lat=store.latitude, lng=store.longitude),
                         expires_at=end_time,
                         time_remaining_minutes=minutes_remaining,
-                        distance_meters=distance
+                        distance_meters=distance,
+                        source="internal"
                     ))
                     print(f"Added coupon {coupon.id} to nearby list")
             except Exception as e:
                 print(f"Error processing coupon {coupon.id}: {e}")
                 continue
         
-        print(f"Returning {len(nearby_coupons)} nearby coupons")
+        print(f"Found {len(nearby_coupons)} internal coupons")
+        
+        # Get external coupons and add them to the result
+        try:
+            external_service = ExternalCouponService()
+            external_coupons = await external_service.get_external_coupons_near_location(lat, lng, radius)
+            
+            # If no real external coupons found, add some mock data for testing
+            if not external_coupons:
+                external_coupons = await get_mock_external_coupons(lat, lng, radius)
+            
+            for ext_coupon in external_coupons:
+                # Skip if user has already obtained this external coupon
+                if ext_coupon['id'] in obtained_coupon_ids:
+                    print(f"Skipping already obtained external coupon: {ext_coupon['id']}")
+                    continue
+                    
+                # Convert external coupon format to CouponResponse
+                try:
+                    expires_at = datetime.fromisoformat(ext_coupon['expires_at'].replace('Z', '+00:00'))
+                except:
+                    expires_at = ext_coupon['end_time']
+                
+                time_remaining = expires_at - datetime.now()
+                minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
+                
+                nearby_coupons.append(CouponResponse(
+                    id=ext_coupon['id'],
+                    store_name=ext_coupon.get('shop_name', ext_coupon.get('store_name', '店舗名不明')),
+                    title=ext_coupon['title'],
+                    description=ext_coupon.get('description', ''),
+                    current_discount=ext_coupon['current_discount'],
+                    location=Location(
+                        lat=ext_coupon['location']['lat'],
+                        lng=ext_coupon['location']['lng']
+                    ),
+                    expires_at=expires_at,
+                    time_remaining_minutes=minutes_remaining,
+                    distance_meters=round(ext_coupon['distance_meters'], 1),
+                    source="external",
+                    external_url=ext_coupon.get('external_url')
+                ))
+                
+            print(f"Added {len(external_coupons)} external coupons")
+                
+        except Exception as e:
+            print(f"Failed to fetch external coupons: {e}")
+        
+        print(f"Returning {len(nearby_coupons)} total coupons (internal + external)")
         return nearby_coupons
         
     except Exception as e:
@@ -475,6 +544,42 @@ async def create_store_coupon_legacy(
 
 # Legacy admin endpoints (backwards compatibility)
 # Admin stats endpoint moved to admin_routes.py
+
+# Old external-test endpoint removed - now handled by api/coupon_routes.py
+
+@app.get("/api/coupons/simple-test")
+async def simple_coupon_test():
+    """Simple test endpoint without database dependency"""
+    mock_coupons = [
+        {
+            "id": "test_tokyo_1",
+            "shop_name": "東京駅周辺店舗",
+            "title": "テスト用クーポン 40% OFF",
+            "current_discount": 40,
+            "location": {"lat": 35.6812, "lng": 139.7671},
+            "expires_at": (datetime.now() + timedelta(hours=2)).isoformat(),
+            "time_remaining_minutes": 120,
+            "distance_meters": 100,
+            "description": "これは動作確認用のテストクーポンです",
+            "source": "external",
+            "store_name": "東京駅周辺店舗"
+        },
+        {
+            "id": "test_shibuya_1", 
+            "shop_name": "渋谷テスト店",
+            "title": "テスト用クーポン 30% OFF",
+            "current_discount": 30,
+            "location": {"lat": 35.6598, "lng": 139.7006},
+            "expires_at": (datetime.now() + timedelta(hours=3)).isoformat(),
+            "time_remaining_minutes": 180,
+            "distance_meters": 500,
+            "description": "これは動作確認用のテストクーポンです",
+            "source": "external", 
+            "store_name": "渋谷テスト店"
+        }
+    ]
+    
+    return {"external_coupons": mock_coupons, "count": len(mock_coupons)}
 
 @app.get("/api/health")
 async def health_check():

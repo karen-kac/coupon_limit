@@ -37,18 +37,98 @@ const authFetch = async (url: string, options: RequestInit = {}): Promise<Respon
   });
 };
 
-export const getCoupons = async (lat: number, lng: number): Promise<Coupon[]> => {
+export const getCoupons = async (lat: number, lng: number, radius: number = 5000): Promise<Coupon[]> => {
+  console.log(`Fetching coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
+  
   try {
-    const token = getAuthToken();
-    const response = await axios.get(`${API_BASE_URL}/coupons`, {
-      params: {
-        lat,
-        lng,
-        radius: 5000 // 検索範囲を5kmに拡大
+    // Try multiple endpoints in order of preference
+    const endpoints = [
+      { 
+        url: `${API_BASE_URL}/coupons?lat=${lat}&lng=${lng}&radius=${radius}`, 
+        requiresAuth: true  // Main endpoint requires authentication for filtering
       },
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    return response.data;
+      { 
+        url: `${API_BASE_URL}/coupons/external-test?lat=${lat}&lng=${lng}&radius=${radius}`, 
+        requiresAuth: false 
+      },
+      { 
+        url: `${API_BASE_URL}/coupons/simple-test`, 
+        requiresAuth: false 
+      }
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying endpoint: ${endpoint.url} (auth: ${endpoint.requiresAuth})`);
+        
+        // --- ここからがaxiosへの変更箇所 ---
+
+        // 変更点 1: axios用の設定オブジェクトを作成
+        const config: any = {
+          params: endpoint.params // URLに付与するパラメータ
+        };
+
+        // 変更点 2: 認証が必要な場合にヘッダーを追加
+        if (endpoint.requiresAuth) {
+          const token = getAuthToken();
+          if (token) {
+            config.headers = { 'Authorization': `Bearer ${token}` };
+          }
+        }
+
+        // 変更点 3: axios.getでAPIを呼び出す
+        const response = await axios.get(endpoint.url, config);
+
+        // 変更点 4: response.okのチェックは不要。axiosは2xx以外をエラーとしてcatchする
+        // 成功した場合、データは response.data に格納されている
+        const data = response.data;
+        
+        // --- ここまでがaxiosへの変更箇所 ---
+          
+        // Handle different response formats
+        let coupons: Coupon[] = [];
+
+        if (data.external_coupons) {
+          // External test endpoint format
+          coupons = data.external_coupons.map((coupon: any) => ({
+            id: coupon.id,
+            store_name: coupon.store_name,
+            shop_name: coupon.shop_name,
+            title: coupon.title,
+            current_discount: coupon.current_discount,
+            location: coupon.location,
+            expires_at: coupon.expires_at,
+            time_remaining_minutes: coupon.time_remaining_minutes,
+            distance_meters: coupon.distance_meters,
+            description: coupon.description,
+            source: coupon.source,
+            external_url: coupon.external_url // Use URL from backend
+          }));
+        } else if (Array.isArray(data)) {
+          // Standard coupons endpoint format (main endpoint)
+          coupons = data.map((coupon: any) => ({
+            id: coupon.id,
+            store_name: coupon.store_name,
+            shop_name: coupon.store_name, // Use store_name for consistency
+            title: coupon.title,
+            current_discount: coupon.current_discount,
+            location: coupon.location,
+            expires_at: coupon.expires_at,
+            time_remaining_minutes: coupon.time_remaining_minutes,
+            distance_meters: coupon.distance_meters,
+            description: coupon.description,
+            source: coupon.source || 'internal',
+            external_url: coupon.external_url // Use URL from backend
+          }));
+        }
+
+        console.log('Successfully fetched coupons:', coupons);
+        return coupons;
+      } catch (error) {
+        console.warn(`Endpoint ${endpoint.url} failed:`, error);
+        continue;
+      }
+    }
   } catch (error) {
     console.error('Error fetching coupons:', error);
     throw error;

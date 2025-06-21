@@ -653,3 +653,45 @@ body {
   text-shadow: none;
   color: inherit;
 }
+
+/* External Coupon Styles */
+.external-badge {
+  background: #4285F4;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.coupon-description {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.4;
+  border-left: 3px solid #4285F4;
+}
+
+.get-btn.external {
+  background: #4285F4;
+  color: white;
+  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+}
+
+.get-btn.external:hover {
+  background: #3367d6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(66, 133, 244, 0.4);
+}

@@ -63,8 +63,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         icon: {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
             <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="5" width="70" height="70" rx="16" fill="#ff4444" stroke="white" stroke-width="4"/>
-              <text x="40" y="35" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">🛍️</text>
+              <rect x="5" y="5" width="70" height="70" rx="16" fill="${coupon.source === 'external' ? '#4285F4' : '#ff4444'}" stroke="white" stroke-width="4" stroke-dasharray="${isNearby ? '0' : '5,5'}"/>
+              <text x="40" y="35" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${coupon.source === 'external' ? '🌐' : '🛍️'}</text>
               <text x="40" y="55" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">COUPON</text>
               <text x="40" y="70" text-anchor="middle" fill="white" font-family="Arial" font-size="12">${coupon.current_discount}%</text>
             </svg>
