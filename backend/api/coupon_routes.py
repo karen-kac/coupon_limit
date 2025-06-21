@@ -220,9 +220,9 @@ async def obtain_coupon(
     """Obtain a coupon if user is within range"""
     
     try:
-        print(f"DEBUG: Processing coupon get request for coupon_id: {request.coupon_id}")
-        print(f"DEBUG: User location: {request.user_location}")
-        print(f"DEBUG: Current user ID: {current_user.id}")
+        logger.debug(f"Processing coupon get request for coupon_id: {request.coupon_id}")
+        logger.debug(f"User location: {request.user_location}")
+        logger.debug(f"Current user ID: {current_user.id}")
         
         # Update discount rates
         update_coupon_discounts(db)
