@@ -19,11 +19,11 @@ const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie
   }>>([]);
 
   useEffect(() => {
-    // Lottieアニメーション用フォールバックタイマー
+    // Lottieアニメーション用タイマー（10秒で強制終了）
     if (useLottie) {
       const fallbackTimer = setTimeout(() => {
         onComplete();
-      }, 1500); // 1.5秒でフォールバック
+      }, 10000); // 10秒で強制終了
       return () => clearTimeout(fallbackTimer);
     }
 
@@ -44,10 +44,10 @@ const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie
       
       setParticles(newParticles);
 
-      // パーティクルアニメーション用タイマー
+      // パーティクルアニメーション用タイマー（10秒で終了）
       const timer = setTimeout(() => {
         onComplete();
-      }, 800);
+      }, 10000);
 
       return () => clearTimeout(timer);
     }
