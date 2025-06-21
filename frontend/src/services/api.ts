@@ -120,7 +120,7 @@ export const getCoupons = async (lat: number, lng: number, radius: number = 5000
               distance_meters: coupon.distance_meters,
               description: coupon.description,
               source: coupon.source,
-              external_url: `https://kumapon.jp/deals/${coupon.id.replace('kumapon_', '')}`
+              external_url: coupon.external_url // Use URL from backend
             }));
           } else if (Array.isArray(data)) {
             // Standard coupons endpoint format (main endpoint)
@@ -136,7 +136,7 @@ export const getCoupons = async (lat: number, lng: number, radius: number = 5000
               distance_meters: coupon.distance_meters,
               description: coupon.description,
               source: coupon.source || 'internal',
-              external_url: coupon.source === 'external' ? `https://kumapon.jp/deals/${coupon.id.replace('kumapon_', '')}` : undefined
+              external_url: coupon.external_url // Use URL from backend
             }));
           }
           

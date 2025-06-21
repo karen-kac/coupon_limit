@@ -41,6 +41,7 @@ class CouponResponse(BaseModel):
     description: Optional[str] = None
     source: Optional[str] = "internal"  # "internal" or "external"
     store_name: Optional[str] = None  # For compatibility with external APIs
+    external_url: Optional[str] = None  # External coupon URL
 
 class GetCouponRequest(BaseModel):
     coupon_id: str
@@ -188,7 +189,8 @@ async def get_nearby_coupons(
                     distance_meters=round(ext_coupon['distance_meters'], 1),
                     description=ext_coupon.get('description', ''),
                     source="external",
-                    store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', ''))
+                    store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                    external_url=ext_coupon.get('external_url')
                 ))
                 
         except Exception as e:
@@ -357,7 +359,8 @@ async def test_external_coupons(
                 "distance_meters": round(ext_coupon['distance_meters'], 1),
                 "description": ext_coupon.get('description', ''),
                 "source": "external",
-                "store_name": ext_coupon.get('store_name', ext_coupon.get('shop_name', ''))
+                "store_name": ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                "external_url": ext_coupon.get('external_url', f"https://kumapon.jp/deals/{ext_coupon['external_id']}")
             })
         
         return {"external_coupons": result, "count": len(result)}
@@ -446,7 +449,8 @@ async def get_nearby_coupons_public(
                     distance_meters=round(ext_coupon['distance_meters'], 1),
                     description=ext_coupon.get('description', ''),
                     source="external",
-                    store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', ''))
+                    store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                    external_url=ext_coupon.get('external_url')
                 ))
                 
         except Exception as e:

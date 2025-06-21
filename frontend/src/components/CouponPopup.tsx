@@ -62,8 +62,17 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
   const handleGetCoupon = () => {
     if (coupon.source === 'external') {
       // For external coupons, open the external URL
-      if (coupon.external_url) {
-        window.open(coupon.external_url, '_blank');
+      let externalUrl = coupon.external_url;
+      
+      // Generate fallback URL if not provided
+      if (!externalUrl && coupon.id.startsWith('kumapon_')) {
+        const couponId = coupon.id.replace('kumapon_', '');
+        const issueDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        externalUrl = `https://kumapon.jp/deals/${issueDate}kpd${couponId}`;
+      }
+      
+      if (externalUrl) {
+        window.open(externalUrl, '_blank');
       } else {
         alert('このクーポンの詳細ページは利用できません');
       }

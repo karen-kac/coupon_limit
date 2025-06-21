@@ -301,8 +301,13 @@ class ExternalCouponService:
                 elif isinstance(images, dict):
                     image_url = images.get('medium', images.get('small', images.get('large', images.get('photo_url', ''))))
             
-            # Get deal URL
-            deal_url = deal.get('deal_url', deal.get('url', f"https://kumapon.jp/deals/{deal['id']}"))
+            # Get deal URL with correct format
+            deal_url = deal.get('deal_url', deal.get('url', ''))
+            if not deal_url:
+                # Generate correct URL format: https://kumapon.jp/deals/20250620kpd256001
+                # Use current date if no issue date is available
+                issue_date = datetime.now().strftime('%Y%m%d')
+                deal_url = f"https://kumapon.jp/deals/{issue_date}kpd{deal['id']}"
             
             # Extract description
             description = deal.get('description', deal.get('fine_print', deal.get('summary', '')))

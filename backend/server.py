@@ -29,6 +29,8 @@ from external_coupons import ExternalCouponService, get_mock_external_coupons
 
 # Import admin routes
 from api.admin_routes import router as admin_router
+# Import coupon routes
+from api.coupon_routes import router as coupon_router
 
 app = FastAPI(title="Enhanced Coupon Location API v2.0")
 
@@ -49,6 +51,8 @@ app.add_middleware(
 
 # Include admin routes
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+# Include coupon routes
+app.include_router(coupon_router, prefix="/api/coupons", tags=["coupons"])
 
 # Pydantic models for requests/responses
 class UserRegisterRequest(BaseModel):
@@ -106,6 +110,7 @@ class CouponResponse(BaseModel):
     time_remaining_minutes: int
     distance_meters: Optional[float] = None
     source: Optional[str] = "internal"  # "internal" or "external"
+    external_url: Optional[str] = None  # External coupon URL
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -373,7 +378,8 @@ async def get_coupons(
                     expires_at=expires_at,
                     time_remaining_minutes=minutes_remaining,
                     distance_meters=round(ext_coupon['distance_meters'], 1),
-                    source="external"
+                    source="external",
+                    external_url=ext_coupon.get('external_url')
                 ))
                 
             print(f"Added {len(external_coupons)} external coupons")
@@ -539,54 +545,7 @@ async def create_store_coupon_legacy(
 # Legacy admin endpoints (backwards compatibility)
 # Admin stats endpoint moved to admin_routes.py
 
-@app.get("/api/coupons/external-test")
-async def test_external_coupons(
-    lat: float = 35.6812,
-    lng: float = 139.7671,
-    radius: int = 5000
-):
-    """Test external coupons without database dependency"""
-    try:
-        # Test external coupons service directly
-        external_service = ExternalCouponService()
-        external_coupons = await external_service.get_external_coupons_near_location(lat, lng, radius)
-        
-        # If no real external coupons found, add some mock data for testing
-        if not external_coupons:
-            external_coupons = await get_mock_external_coupons(lat, lng, radius)
-        
-        result = []
-        for ext_coupon in external_coupons:
-            # Convert external coupon format to simple response
-            try:
-                expires_at = datetime.fromisoformat(ext_coupon['expires_at'].replace('Z', '+00:00'))
-            except:
-                expires_at = ext_coupon['end_time']
-            
-            time_remaining = expires_at - datetime.now()
-            minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
-            
-            result.append({
-                "id": ext_coupon['id'],
-                "shop_name": ext_coupon.get('shop_name', ext_coupon.get('store_name', '店舗名不明')),
-                "title": ext_coupon['title'],
-                "current_discount": ext_coupon['current_discount'],
-                "location": {
-                    "lat": ext_coupon['location']['lat'],
-                    "lng": ext_coupon['location']['lng']
-                },
-                "expires_at": expires_at.isoformat(),
-                "time_remaining_minutes": minutes_remaining,
-                "distance_meters": round(ext_coupon['distance_meters'], 1),
-                "description": ext_coupon.get('description', ''),
-                "source": "external",
-                "store_name": ext_coupon.get('store_name', ext_coupon.get('shop_name', ''))
-            })
-        
-        return {"external_coupons": result, "count": len(result)}
-    
-    except Exception as e:
-        return {"error": str(e), "external_coupons": [], "count": 0}
+# Old external-test endpoint removed - now handled by api/coupon_routes.py
 
 @app.get("/api/coupons/simple-test")
 async def simple_coupon_test():
