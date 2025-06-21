@@ -1,4 +1,5 @@
-import { Coupon, UserCoupon, Location } from '../types';
+import { UserCoupon, Location, Coupon } from '../types';
+import axios from 'axios';
 
 // Environment-based API configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 
@@ -36,40 +37,6 @@ const authFetch = async (url: string, options: RequestInit = {}): Promise<Respon
   });
 };
 
-// Mock coupons for fallback
-const getMockCoupons = (lat: number, lng: number): Coupon[] => {
-  return [
-    {
-      id: 'mock_1',
-      store_name: 'サンプル東京駅店',
-      shop_name: 'サンプル東京駅店',
-      title: 'テスト用クーポン 50% OFF',
-      current_discount: 50,
-      location: { lat: lat + 0.001, lng: lng + 0.001 },
-      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      time_remaining_minutes: 120,
-      distance_meters: 150,
-      description: 'これはテスト用のクーポンです',
-      source: 'external',
-      external_url: 'https://example.com'
-    },
-    {
-      id: 'mock_2',
-      store_name: 'サンプル渋谷店',
-      shop_name: 'サンプル渋谷店',
-      title: 'テスト用クーポン 30% OFF',
-      current_discount: 30,
-      location: { lat: lat - 0.001, lng: lng - 0.001 },
-      expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-      time_remaining_minutes: 180,
-      distance_meters: 200,
-      description: 'これはテスト用のクーポンです',
-      source: 'external',
-      external_url: 'https://example.com'
-    }
-  ];
-};
-
 export const getCoupons = async (lat: number, lng: number, radius: number = 5000): Promise<Coupon[]> => {
   console.log(`Fetching coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
   
@@ -94,69 +61,79 @@ export const getCoupons = async (lat: number, lng: number, radius: number = 5000
       try {
         console.log(`Trying endpoint: ${endpoint.url} (auth: ${endpoint.requiresAuth})`);
         
-        // Use authFetch for authenticated endpoints, regular fetch for others
-        const response = endpoint.requiresAuth 
-          ? await authFetch(endpoint.url) 
-          : await fetch(endpoint.url);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Received data:', data);
-          
-          // Handle different response formats
-          let coupons: Coupon[] = [];
-          
-          if (data.external_coupons) {
-            // External test endpoint format
-            coupons = data.external_coupons.map((coupon: any) => ({
-              id: coupon.id,
-              store_name: coupon.store_name,
-              shop_name: coupon.shop_name,
-              title: coupon.title,
-              current_discount: coupon.current_discount,
-              location: coupon.location,
-              expires_at: coupon.expires_at,
-              time_remaining_minutes: coupon.time_remaining_minutes,
-              distance_meters: coupon.distance_meters,
-              description: coupon.description,
-              source: coupon.source,
-              external_url: coupon.external_url // Use URL from backend
-            }));
-          } else if (Array.isArray(data)) {
-            // Standard coupons endpoint format (main endpoint)
-            coupons = data.map((coupon: any) => ({
-              id: coupon.id,
-              store_name: coupon.store_name,
-              shop_name: coupon.store_name, // Use store_name for consistency
-              title: coupon.title,
-              current_discount: coupon.current_discount,
-              location: coupon.location,
-              expires_at: coupon.expires_at,
-              time_remaining_minutes: coupon.time_remaining_minutes,
-              distance_meters: coupon.distance_meters,
-              description: coupon.description,
-              source: coupon.source || 'internal',
-              external_url: coupon.external_url // Use URL from backend
-            }));
+        // --- ここからがaxiosへの変更箇所 ---
+
+        // 変更点 1: axios用の設定オブジェクトを作成
+        const config: any = {};
+
+        // 変更点 2: 認証が必要な場合にヘッダーを追加
+        if (endpoint.requiresAuth) {
+          const token = getAuthToken();
+          if (token) {
+            config.headers = { 'Authorization': `Bearer ${token}` };
           }
-          
-          console.log('Successfully fetched coupons:', coupons);
-          return coupons;
         }
+
+        // 変更点 3: axios.getでAPIを呼び出す
+        const response = await axios.get(endpoint.url, config);
+
+        // 変更点 4: response.okのチェックは不要。axiosは2xx以外をエラーとしてcatchする
+        // 成功した場合、データは response.data に格納されている
+        const data = response.data;
+        
+        // --- ここまでがaxiosへの変更箇所 ---
+          
+        // Handle different response formats
+        let coupons: Coupon[] = [];
+
+        if (data.external_coupons) {
+          // External test endpoint format
+          coupons = data.external_coupons.map((coupon: any) => ({
+            id: coupon.id,
+            store_name: coupon.store_name,
+            shop_name: coupon.shop_name,
+            title: coupon.title,
+            current_discount: coupon.current_discount,
+            location: coupon.location,
+            expires_at: coupon.expires_at,
+            time_remaining_minutes: coupon.time_remaining_minutes,
+            distance_meters: coupon.distance_meters,
+            description: coupon.description,
+            source: coupon.source,
+            external_url: coupon.external_url // Use URL from backend
+          }));
+        } else if (Array.isArray(data)) {
+          // Standard coupons endpoint format (main endpoint)
+          coupons = data.map((coupon: any) => ({
+            id: coupon.id,
+            store_name: coupon.store_name,
+            shop_name: coupon.store_name, // Use store_name for consistency
+            title: coupon.title,
+            current_discount: coupon.current_discount,
+            location: coupon.location,
+            expires_at: coupon.expires_at,
+            time_remaining_minutes: coupon.time_remaining_minutes,
+            distance_meters: coupon.distance_meters,
+            description: coupon.description,
+            source: coupon.source || 'internal',
+            external_url: coupon.external_url // Use URL from backend
+          }));
+        }
+
+        console.log('Successfully fetched coupons:', coupons);
+        return coupons;
       } catch (error) {
         console.warn(`Endpoint ${endpoint.url} failed:`, error);
         continue;
       }
     }
     
-    // If all endpoints fail, return mock data
-    console.warn('All API endpoints failed, using mock data');
-    return getMockCoupons(lat, lng);
-    
+    // If all endpoints fail, return empty array
+    console.warn('All endpoints failed, returning empty coupon array');
+    return [];
   } catch (error) {
-    console.error('getCoupons error:', error);
-    console.log('Returning mock coupons due to API error');
-    return getMockCoupons(lat, lng);
+    console.error('Error fetching coupons:', error);
+    throw error;
   }
 };
 

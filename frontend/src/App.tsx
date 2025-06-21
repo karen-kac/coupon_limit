@@ -20,6 +20,7 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const POLLING_INTERVAL = 30000; // 30秒ごとに更新
 
   const loadCoupons = useCallback(async () => {
     if (!userLocation) {
@@ -34,7 +35,7 @@ function MainApp() {
       const data = await getCoupons(userLocation.lat, userLocation.lng);
       console.log('✅ Successfully loaded coupons:', data.length, 'items');
       console.log('First few coupons:', data.slice(0, 3));
-      
+
       setCoupons(data);
       setError(null);
     } catch (error) {
@@ -91,6 +92,20 @@ function MainApp() {
     }
   }, [isAuthenticated]);
 
+  // ユーザークーポンが変更されたときのフィルタリング
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    setCoupons(prevCoupons => {
+      const filteredCoupons = prevCoupons.filter((coupon: Coupon) => 
+        !userCoupons.some(uc => uc.coupon_id === coupon.id)
+      );
+      console.log('Filtered coupons after userCoupons update:', filteredCoupons);
+      return filteredCoupons;
+    });
+  }, [userCoupons, isAuthenticated]);
+
+  // スプラッシュスクリーンと位置情報の取得
   useEffect(() => {
     getCurrentLocation();
     // スプラッシュスクリーンを2.5秒後に非表示
@@ -100,13 +115,26 @@ function MainApp() {
     return () => clearTimeout(timer);
   }, []);
 
+  // 初回データ取得のみ
   useEffect(() => {
-    if (userLocation) {
-      console.log('📍 User location updated, loading data...');
-      loadCoupons();
-      loadUserCoupons();
-    }
-  }, [userLocation, loadCoupons, loadUserCoupons]);
+    if (!userLocation || !isAuthenticated) return;
+
+    loadCoupons();
+    loadUserCoupons();
+  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
+
+  // ポーリング設定（別のuseEffect）
+  useEffect(() => {
+    if (!userLocation || !isAuthenticated) return;
+
+    const couponInterval = setInterval(loadCoupons, POLLING_INTERVAL);
+    const userCouponInterval = setInterval(loadUserCoupons, POLLING_INTERVAL);
+
+    return () => {
+      clearInterval(couponInterval);
+      clearInterval(userCouponInterval);
+    };
+  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
 
   // Debug effect to monitor coupon state changes
   useEffect(() => {
