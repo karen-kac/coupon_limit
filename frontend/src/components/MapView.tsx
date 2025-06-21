@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Coupon, Location } from '../types';
 import ExplosionEffect from './ExplosionEffect';
 import './ExplosionEffect.css';
@@ -139,18 +140,16 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
           div.appendChild(explosionRoot);
           
           // Use ReactDOM.render to mount the ExplosionEffect
-          import('react-dom/client').then(({ createRoot }) => {
-            const root = createRoot(explosionRoot);
-            const ExplosionComponent = React.createElement(ExplosionEffect, {
-              onComplete: () => {
-                console.log(`🎆 Explosion completed for coupon ${coupon.id}`);
-                onExplosionComplete(coupon.id);
-                explosionOverlay.setMap(null);
-              },
-              useLottie: true
-            });
-            root.render(ExplosionComponent);
+          const root = createRoot(explosionRoot);
+          const ExplosionComponent = React.createElement(ExplosionEffect, {
+            onComplete: () => {
+              console.log(`🎆 Explosion completed for coupon ${coupon.id}`);
+              onExplosionComplete(coupon.id);
+              explosionOverlay.setMap(null);
+            },
+            useLottie: true
           });
+          root.render(ExplosionComponent);
           
           this.getPanes()!.overlayMouseTarget.appendChild(div);
           this.div = div;
