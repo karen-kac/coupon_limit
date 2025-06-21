@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserCoupon } from '../types';
 import { applyCoupon } from '../services/api';
+import MyCouponDetailPopup from './MyCouponDetailPopup';
 
 interface MyPageProps {
   coupons: UserCoupon[];
@@ -10,6 +11,7 @@ interface MyPageProps {
 const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
   const [filter, setFilter] = useState<'all' | 'unused' | 'used'>('all');
   const [loading, setLoading] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState<UserCoupon | null>(null);
 
   const filteredCoupons = coupons.filter(coupon => {
     if (filter === 'unused') return !coupon.is_used;
@@ -93,8 +95,8 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
             <div
               key={coupon.id}
               className={`coupon-item ${coupon.is_used ? 'used' : ''}`}
-              onClick={() => !coupon.is_used && handleUseCoupon(coupon)}
-              style={{ cursor: coupon.is_used ? 'default' : 'pointer' }}
+              onClick={() => setSelectedCoupon(coupon)}
+              style={{ cursor: 'pointer' }}
             >
               <div className="coupon-header">
                 <span className="shop-name">{coupon.shop_name || coupon.store_name}</span>
@@ -111,7 +113,7 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
                   {coupon.is_used ? (
                     `使用済み (${formatDate(coupon.used_at!)})`
                   ) : (
-                    '未使用 - タップして使用'
+                    '未使用 - タップして詳細'
                   )}
                 </span>
               </div>
@@ -131,6 +133,14 @@ const MyPage: React.FC<MyPageProps> = ({ coupons, onRefresh }) => {
           <div className="loading-spinner">🎫</div>
           <p>クーポンを使用中...</p>
         </div>
+      )}
+      
+      {selectedCoupon && (
+        <MyCouponDetailPopup
+          coupon={selectedCoupon}
+          onClose={() => setSelectedCoupon(null)}
+          onUseCoupon={handleUseCoupon}
+        />
       )}
     </div>
   );
