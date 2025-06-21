@@ -11,7 +11,8 @@
       "Bash(python:*)",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "WebFetch(domain:webservice.recruit.co.jp)"
     ],
     "deny": []
   }

@@ -78,7 +78,16 @@ def update_coupon_discounts(db: Session):
     ).all()
     
     for coupon in active_coupons:
-        time_remaining = coupon.end_time - now
+        # Handle timezone-aware vs naive datetime
+        coupon_end_time = coupon.end_time
+        if coupon_end_time.tzinfo is not None:
+            # If coupon time is timezone-aware, make now timezone-aware too
+            from datetime import timezone
+            now_aware = now.replace(tzinfo=timezone.utc)
+            time_remaining = coupon_end_time - now_aware
+        else:
+            # Both are naive
+            time_remaining = coupon_end_time - now
         minutes_remaining = time_remaining.total_seconds() / 60
         
         # Simple discount escalation logic
@@ -367,6 +376,55 @@ async def test_external_coupons(
     
     except Exception as e:
         return {"error": str(e), "external_coupons": [], "count": 0}
+
+@router.get("/hotpepper-test")
+async def test_hotpepper_coupons(
+    lat: float = Query(35.6812, description="User latitude"),
+    lng: float = Query(139.7671, description="User longitude"),
+    radius: int = Query(3000, description="Search radius in meters")
+):
+    """Test Hot Pepper coupons without database dependency"""
+    try:
+        # Test Hot Pepper coupons service directly
+        external_service = ExternalCouponService()
+        hotpepper_coupons = await external_service.fetch_hotpepper_coupons_near_location(lat, lng, radius)
+        
+        result = []
+        for ext_coupon in hotpepper_coupons:
+            # Convert Hot Pepper coupon format to simple response
+            try:
+                expires_at = datetime.fromisoformat(ext_coupon['expires_at'].replace('Z', '+00:00'))
+            except:
+                expires_at = ext_coupon['end_time']
+            
+            time_remaining = expires_at - datetime.now()
+            minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
+            
+            result.append({
+                "id": ext_coupon['id'],
+                "shop_name": ext_coupon.get('shop_name', ext_coupon.get('store_name', '店舗名不明')),
+                "title": ext_coupon['title'],
+                "current_discount": ext_coupon['current_discount'],
+                "location": {
+                    "lat": ext_coupon['location']['lat'],
+                    "lng": ext_coupon['location']['lng']
+                },
+                "expires_at": expires_at.isoformat(),
+                "time_remaining_minutes": minutes_remaining,
+                "distance_meters": round(ext_coupon['distance_meters'], 1),
+                "description": ext_coupon.get('description', ''),
+                "source": "hotpepper",
+                "store_name": ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                "external_url": ext_coupon.get('external_url'),
+                "genre": ext_coupon.get('genre', ''),
+                "budget": ext_coupon.get('budget', ''),
+                "access": ext_coupon.get('access', '')
+            })
+        
+        return {"hotpepper_coupons": result, "count": len(result)}
+    
+    except Exception as e:
+        return {"error": str(e), "hotpepper_coupons": [], "count": 0}
 
 @router.get("/public", response_model=List[CouponResponse])
 async def get_nearby_coupons_public(

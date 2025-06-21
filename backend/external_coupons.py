@@ -1,6 +1,6 @@
 """
 External Coupon Service
-Fetches coupons from external APIs like Kumapon and integrates them into our system
+Fetches coupons from external APIs like Kumapon, Hot Pepper and integrates them into our system
 """
 import requests
 import json
@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import uuid
 from models import Coupon
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,8 @@ class ExternalCouponService:
     
     def __init__(self):
         self.kumapon_base_url = "https://api.kumapon.jp"
+        self.hotpepper_base_url = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/"
+        self.hotpepper_api_key = os.getenv("HOTPEPPER_API_KEY", "")  # API key from environment
         
     async def fetch_kumapon_areas(self) -> List[Dict]:
         """Fetch available areas from Kumapon API"""
@@ -354,6 +357,10 @@ class ExternalCouponService:
         kumapon_coupons = await self.fetch_kumapon_coupons_near_location(lat, lng, radius)
         external_coupons.extend(kumapon_coupons)
         
+        # Fetch from Hot Pepper
+        hotpepper_coupons = await self.fetch_hotpepper_coupons_near_location(lat, lng, radius)
+        external_coupons.extend(hotpepper_coupons)
+        
         return external_coupons
     
     async def fetch_kumapon_coupons_near_location(self, lat: float, lng: float, radius: int) -> List[Dict]:
@@ -477,6 +484,279 @@ class ExternalCouponService:
         
         return R * c
 
+    async def generate_hotpepper_mock_coupons_near_user(self, user_lat: float, user_lng: float, radius: int) -> List[Dict]:
+        """Generate Hot Pepper mock coupons near user's location"""
+        import random
+        
+        mock_coupons = []
+        
+        # Generate 5-8 mock Hot Pepper coupons around user location
+        num_coupons = random.randint(5, 8)
+        
+        # Restaurant types and names for mock data
+        restaurant_types = [
+            {"genre": "和食", "names": ["海鮮居酒屋 魚心", "日本料理 さくら", "寿司 まつ", "うなぎ 川重"], "emoji": "🍣"},
+            {"genre": "イタリアン・フレンチ", "names": ["トラットリア・ベラヴィスタ", "カフェレストラン マルコ", "ビストロ プティ"], "emoji": "🍝"},
+            {"genre": "焼肉・韓国料理", "names": ["炭火焼肉 牛角", "韓国料理 ソウル", "焼肉 大将"], "emoji": "🥩"},
+            {"genre": "中華", "names": ["中華料理 龍門", "餃子の王将", "四川料理 麻辣"], "emoji": "🥟"},
+            {"genre": "カフェ・スイーツ", "names": ["カフェ ドトール", "パティスリー アンジュ", "喫茶店 珈琲館"], "emoji": "☕"},
+            {"genre": "ファミリーレストラン", "names": ["ファミレス サイゼリヤ", "デニーズ", "ガスト"], "emoji": "🍽️"}
+        ]
+        
+        for i in range(num_coupons):
+            # Random position within radius around user - concentrated near user location
+            angle = random.uniform(0, 2 * 3.14159)
+            
+            # Generate distances with preference for closer locations
+            rand = random.random()
+            if rand < 0.7:  # 70% within 200m (歩いて2-3分)
+                distance_m = random.uniform(30, 200)
+            elif rand < 0.9:  # 20% within 200m-500m (歩いて3-6分)
+                distance_m = random.uniform(200, 500)
+            else:  # 10% within 500m-1000m (歩いて6-12分)
+                distance_m = random.uniform(500, min(radius, 1000))
+            
+            # Convert to lat/lng offset using proper geographic calculation
+            import math
+            
+            # Earth's radius in meters
+            R = 6371000
+            
+            # Convert distance to radians
+            distance_rad = distance_m / R
+            
+            # Calculate new coordinates
+            lat1 = math.radians(user_lat)
+            lng1 = math.radians(user_lng)
+            
+            lat2 = math.asin(math.sin(lat1) * math.cos(distance_rad) + 
+                           math.cos(lat1) * math.sin(distance_rad) * math.cos(angle))
+            lng2 = lng1 + math.atan2(math.sin(angle) * math.sin(distance_rad) * math.cos(lat1),
+                                   math.cos(distance_rad) - math.sin(lat1) * math.sin(lat2))
+            
+            coupon_lat = math.degrees(lat2)
+            coupon_lng = math.degrees(lng2)
+            
+            # Random restaurant type
+            restaurant_type = random.choice(restaurant_types)
+            shop_name = random.choice(restaurant_type["names"])
+            
+            # Random discount
+            discount_rates = [15, 20, 25, 30]
+            discount = random.choice(discount_rates)
+            
+            # Generate budget
+            budgets = ["1000～2000円", "2000～3000円", "3000～4000円", "4000～5000円"]
+            budget = random.choice(budgets)
+            
+            mock_coupon = {
+                'id': f'hotpepper_mock_{i+1}_{user_lat:.4f}_{user_lng:.4f}',
+                'title': f'{shop_name} - {restaurant_type["genre"]}クーポン',
+                'description': f'{restaurant_type["emoji"]} {restaurant_type["genre"]}をお楽しみください',
+                'store_name': shop_name,
+                'shop_name': shop_name,
+                'current_discount': discount,
+                'discount_rate_initial': discount,
+                'location': {'lat': coupon_lat, 'lng': coupon_lng},
+                'start_time': datetime.now(),
+                'end_time': datetime.now() + timedelta(days=30),
+                'expires_at': (datetime.now() + timedelta(days=30)).isoformat(),
+                'active_status': 'active',
+                'source': 'hotpepper',
+                'external_id': f'hp_mock_{i+1}',
+                'external_url': f'https://www.hotpepper.jp/strJ00123456{i+1}/',
+                'distance_meters': distance_m,
+                'genre': restaurant_type["genre"],
+                'budget': budget,
+                'access': f'現在地から徒歩{max(1, int(distance_m / 80))}分'  # 80m/分で計算
+            }
+            
+            mock_coupons.append(mock_coupon)
+            logger.info(f"Generated mock Hot Pepper coupon: {mock_coupon['id']} - {mock_coupon['shop_name']}")
+        
+        return mock_coupons
+
+    async def fetch_hotpepper_shops(self, lat: float, lng: float, radius: int = 3000) -> List[Dict]:
+        """Fetch shops from Hot Pepper API near specified location"""
+        if not self.hotpepper_api_key:
+            logger.warning("Hot Pepper API key not configured")
+            return []
+        
+        try:
+            # Convert radius from meters to Hot Pepper API range parameter
+            # Hot Pepper API uses fixed range values: 1(300m), 2(500m), 3(1000m), 4(2000m), 5(3000m)
+            if radius <= 300:
+                range_param = 1
+            elif radius <= 500:
+                range_param = 2
+            elif radius <= 1000:
+                range_param = 3
+            elif radius <= 2000:
+                range_param = 4
+            else:
+                range_param = 5
+            
+            params = {
+                'key': self.hotpepper_api_key,
+                'lat': lat,
+                'lng': lng,
+                'range': range_param,
+                'format': 'json',
+                'count': 50,  # Maximum results per request
+                'order': 4,   # Sort by distance
+                'mobile_coupon': 1,  # Only shops with mobile coupons
+            }
+            
+            logger.info(f"Fetching Hot Pepper shops at {lat}, {lng} with range {range_param}")
+            
+            response = requests.get(self.hotpepper_base_url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if 'results' in data and 'shop' in data['results']:
+                shops = data['results']['shop']
+                logger.info(f"Found {len(shops)} Hot Pepper shops")
+                return shops
+            else:
+                logger.warning("No shops found in Hot Pepper API response")
+                return []
+                
+        except requests.RequestException as e:
+            logger.error(f"Failed to fetch Hot Pepper shops: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Error processing Hot Pepper API response: {e}")
+            return []
+
+    def convert_hotpepper_to_coupon(self, shop: Dict, user_lat: float, user_lng: float) -> Optional[Dict]:
+        """Convert Hot Pepper shop data to our Coupon format"""
+        try:
+            # Extract basic information
+            shop_id = shop.get('id', '')
+            shop_name = shop.get('name', '店舗名不明')
+            
+            # Extract location
+            lat = float(shop.get('lat', user_lat))
+            lng = float(shop.get('lng', user_lng))
+            
+            # Calculate distance
+            distance = self.calculate_distance(user_lat, user_lng, lat, lng)
+            
+            # Extract coupon information
+            coupon_urls = shop.get('coupon_urls', {})
+            mobile_coupon = coupon_urls.get('sp', coupon_urls.get('pc', ''))
+            
+            # Generate coupon details
+            # Hot Pepper doesn't provide specific discount rates, so we'll use shop info to estimate
+            discount_rate = 20  # Default discount rate
+            
+            # Try to extract discount from shop description or name
+            if 'discount' in shop.get('catch', '').lower():
+                discount_rate = 30
+            elif 'special' in shop.get('catch', '').lower() or 'お得' in shop.get('catch', ''):
+                discount_rate = 25
+            
+            # Create coupon title
+            genre_name = shop.get('genre', {}).get('name', '')
+            title = f"{shop_name} - {genre_name}クーポン"
+            if len(title) > 50:
+                title = f"{shop_name}クーポン"
+            
+            # Extract description
+            description = shop.get('catch', shop.get('access', ''))
+            if not description:
+                description = f"{shop_name}でご利用いただけるクーポンです"
+            
+            # Set expiration (Hot Pepper coupons typically valid for 30 days)
+            expires_at = datetime.now() + timedelta(days=30)
+            
+            # Extract address
+            address = shop.get('address', '')
+            
+            # Extract photo URL
+            photo_url = ''
+            if 'photo' in shop and 'mobile' in shop['photo']:
+                photo_url = shop['photo']['mobile'].get('l', shop['photo']['mobile'].get('m', ''))
+            
+            coupon_data = {
+                'id': f"hotpepper_{shop_id}",
+                'title': title,
+                'description': description,
+                'store_name': shop_name,
+                'shop_name': shop_name,
+                'current_discount': discount_rate,
+                'discount_rate_initial': discount_rate,
+                'location': {
+                    'lat': lat,
+                    'lng': lng
+                },
+                'start_time': datetime.now(),
+                'end_time': expires_at,
+                'expires_at': expires_at.isoformat(),
+                'active_status': 'active',
+                'source': 'hotpepper',
+                'external_id': shop_id,
+                'external_url': mobile_coupon or shop.get('urls', {}).get('pc', ''),
+                'image_url': photo_url,
+                'address': address,
+                'distance_meters': distance,
+                'genre': genre_name,
+                'budget': shop.get('budget', {}).get('name', ''),
+                'access': shop.get('access', ''),
+                'open_time': shop.get('open', ''),
+                'close_time': shop.get('close', ''),
+            }
+            
+            logger.info(f"Converted Hot Pepper coupon: {coupon_data['id']} - {coupon_data['shop_name']}")
+            return coupon_data
+            
+        except Exception as e:
+            logger.error(f"Failed to convert Hot Pepper shop data: {e}")
+            logger.error(f"Original shop data: {shop}")
+            return None
+
+    async def fetch_hotpepper_coupons_near_location(self, lat: float, lng: float, radius: int) -> List[Dict]:
+        """Fetch Hot Pepper coupons near specified location"""
+        coupons = []
+        
+        try:
+            logger.info(f"Starting Hot Pepper coupon fetch for location: {lat}, {lng}")
+            
+            # Fetch shops with coupons
+            shops = await self.fetch_hotpepper_shops(lat, lng, radius)
+            
+            if not shops:
+                logger.warning("No Hot Pepper shops found")
+                # If no real shops found, generate mock data based on user location
+                mock_coupons = await self.generate_hotpepper_mock_coupons_near_user(lat, lng, radius)
+                coupons.extend(mock_coupons)
+                return coupons
+            
+            logger.info(f"Found {len(shops)} Hot Pepper shops")
+            
+            # Convert shops to coupons
+            for shop in shops:
+                try:
+                    converted_coupon = self.convert_hotpepper_to_coupon(shop, lat, lng)
+                    if converted_coupon:
+                        coupons.append(converted_coupon)
+                        logger.info(f"Added Hot Pepper coupon: {converted_coupon['id']} - {converted_coupon['shop_name']}")
+                        
+                        # Limit to prevent too many external coupons
+                        if len(coupons) >= 20:
+                            break
+                            
+                except Exception as e:
+                    logger.error(f"Failed to process Hot Pepper shop: {e}")
+                    continue
+            
+            logger.info(f"Successfully fetched {len(coupons)} Hot Pepper coupons")
+                            
+        except Exception as e:
+            logger.error(f"Failed to fetch Hot Pepper coupons: {e}")
+        
+        return coupons
+
 # Mock data for testing when Kumapon API is not available
 MOCK_EXTERNAL_COUPONS = [
     {
@@ -535,22 +815,178 @@ MOCK_EXTERNAL_COUPONS = [
     }
 ]
 
+# Mock Hot Pepper data for testing
+MOCK_HOTPEPPER_COUPONS = [
+    {
+        'id': 'hotpepper_tokyo_1',
+        'title': '東京駅前居酒屋 - 和食クーポン',
+        'description': '新鮮な海鮮と地酒をお楽しみください',
+        'store_name': '海鮮居酒屋 魚心',
+        'shop_name': '海鮮居酒屋 魚心',
+        'current_discount': 25,
+        'discount_rate_initial': 25,
+        'location': {'lat': 35.6815, 'lng': 139.7678},
+        'start_time': datetime.now(),
+        'end_time': datetime.now() + timedelta(days=30),
+        'expires_at': (datetime.now() + timedelta(days=30)).isoformat(),
+        'active_status': 'active',
+        'source': 'hotpepper',
+        'external_id': 'hp_mock_1',
+        'external_url': 'https://www.hotpepper.jp/strJ001234567/',
+        'distance_meters': 0,
+        'genre': '和食',
+        'budget': '3000～4000円',
+        'access': '東京駅徒歩3分'
+    },
+    {
+        'id': 'hotpepper_shibuya_1',
+        'title': '渋谷イタリアン - 洋食クーポン',
+        'description': '本格イタリアンをカジュアルに',
+        'store_name': 'トラットリア・ベラヴィスタ',
+        'shop_name': 'トラットリア・ベラヴィスタ',
+        'current_discount': 30,
+        'discount_rate_initial': 30,
+        'location': {'lat': 35.6595, 'lng': 139.7003},
+        'start_time': datetime.now(),
+        'end_time': datetime.now() + timedelta(days=30),
+        'expires_at': (datetime.now() + timedelta(days=30)).isoformat(),
+        'active_status': 'active',
+        'source': 'hotpepper',
+        'external_id': 'hp_mock_2',
+        'external_url': 'https://www.hotpepper.jp/strJ001234568/',
+        'distance_meters': 0,
+        'genre': 'イタリアン・フレンチ',
+        'budget': '2000～3000円',
+        'access': '渋谷駅徒歩5分'
+    },
+    {
+        'id': 'hotpepper_shinjuku_1',
+        'title': '新宿焼肉 - 焼肉・韓国料理クーポン',
+        'description': 'A5ランク和牛をリーズナブルに',
+        'store_name': '炭火焼肉 牛角 新宿店',
+        'shop_name': '炭火焼肉 牛角 新宿店',
+        'current_discount': 20,
+        'discount_rate_initial': 20,
+        'location': {'lat': 35.6893, 'lng': 139.7003},
+        'start_time': datetime.now(),
+        'end_time': datetime.now() + timedelta(days=30),
+        'expires_at': (datetime.now() + timedelta(days=30)).isoformat(),
+        'active_status': 'active',
+        'source': 'hotpepper',
+        'external_id': 'hp_mock_3',
+        'external_url': 'https://www.hotpepper.jp/strJ001234569/',
+        'distance_meters': 0,
+        'genre': '焼肉・韓国料理',
+        'budget': '3000～4000円',
+        'access': '新宿駅東口徒歩2分'
+    }
+]
+
 async def get_mock_external_coupons(lat: float, lng: float, radius: int = 5000) -> List[Dict]:
-    """Get mock external coupons for testing"""
+    """Get mock external coupons for testing - generated dynamically near user location"""
     service = ExternalCouponService()
     result_coupons = []
     
-    for coupon in MOCK_EXTERNAL_COUPONS:
-        # Calculate distance
-        distance = service.calculate_distance(
-            lat, lng,
-            coupon['location']['lat'],
-            coupon['location']['lng']
-        )
-        
-        if distance <= radius:
-            coupon_copy = coupon.copy()
-            coupon_copy['distance_meters'] = distance
-            result_coupons.append(coupon_copy)
+    # Generate Kumapon mock coupons near user location
+    kumapon_mock_coupons = await generate_kumapon_mock_coupons_near_user(lat, lng, radius)
+    result_coupons.extend(kumapon_mock_coupons)
+    
+    # Generate Hot Pepper mock coupons near user location
+    hotpepper_mock_coupons = await service.generate_hotpepper_mock_coupons_near_user(lat, lng, radius)
+    result_coupons.extend(hotpepper_mock_coupons)
     
     return result_coupons
+
+async def generate_kumapon_mock_coupons_near_user(user_lat: float, user_lng: float, radius: int) -> List[Dict]:
+    """Generate Kumapon mock coupons near user's location"""
+    import random
+    import math
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    mock_coupons = []
+    
+    # Generate 3-5 mock Kumapon coupons around user location
+    num_coupons = random.randint(3, 5)
+    
+    # Service types for Kumapon
+    service_types = [
+        {"category": "グルメ", "names": ["レストラン食事券", "カフェ利用券", "居酒屋クーポン"], "emoji": "🍽️"},
+        {"category": "美容・エステ", "names": ["エステ体験", "美容室カット", "ネイルサロン"], "emoji": "💅"},
+        {"category": "健康・マッサージ", "names": ["マッサージ60分", "整体治療", "リラクゼーション"], "emoji": "💆"},
+        {"category": "レジャー", "names": ["映画館チケット", "温泉入浴券", "カラオケ利用券"], "emoji": "🎬"},
+        {"category": "ショッピング", "names": ["ファッション割引券", "雑貨店クーポン", "家電量販店割引"], "emoji": "🛍️"}
+    ]
+    
+    for i in range(num_coupons):
+        # Random position within radius around user - concentrated near user location
+        angle = random.uniform(0, 2 * 3.14159)
+        
+        # Generate distances with preference for closer locations
+        rand = random.random()
+        if rand < 0.6:  # 60% within 300m (歩いて3-4分)
+            distance_m = random.uniform(50, 300)
+        elif rand < 0.85:  # 25% within 300m-700m (歩いて4-8分)
+            distance_m = random.uniform(300, 700)
+        else:  # 15% within 700m-1200m (歩いて8-15分)
+            distance_m = random.uniform(700, min(radius, 1200))
+        
+        # Convert to lat/lng offset using proper geographic calculation
+        # Earth's radius in meters
+        R = 6371000
+        
+        # Convert distance to radians
+        distance_rad = distance_m / R
+        
+        # Calculate new coordinates
+        lat1 = math.radians(user_lat)
+        lng1 = math.radians(user_lng)
+        
+        lat2 = math.asin(math.sin(lat1) * math.cos(distance_rad) + 
+                       math.cos(lat1) * math.sin(distance_rad) * math.cos(angle))
+        lng2 = lng1 + math.atan2(math.sin(angle) * math.sin(distance_rad) * math.cos(lat1),
+                               math.cos(distance_rad) - math.sin(lat1) * math.sin(lat2))
+        
+        coupon_lat = math.degrees(lat2)
+        coupon_lng = math.degrees(lng2)
+        
+        # Random service type
+        service_type = random.choice(service_types)
+        service_name = random.choice(service_type["names"])
+        
+        # Random discount
+        discount_rates = [30, 40, 50, 60, 70]
+        discount = random.choice(discount_rates)
+        
+        # Random original price
+        original_prices = [3000, 5000, 8000, 10000, 15000]
+        original_price = random.choice(original_prices)
+        sale_price = int(original_price * (100 - discount) / 100)
+        walk_minutes = max(1, int(distance_m / 80))  # 80m/分で計算
+        
+        mock_coupon = {
+            'id': f'kumapon_mock_{i+1}_{user_lat:.4f}_{user_lng:.4f}',
+            'title': f'{service_name} {discount}% OFF',
+            'description': f'{service_type["emoji"]} {service_type["category"]}のお得なクーポン（徒歩{walk_minutes}分）',
+            'store_name': f'{service_type["category"]}店',
+            'shop_name': f'{service_type["category"]}店',
+            'current_discount': discount,
+            'discount_rate_initial': discount,
+            'location': {'lat': coupon_lat, 'lng': coupon_lng},
+            'start_time': datetime.now(),
+            'end_time': datetime.now() + timedelta(hours=random.randint(4, 12)),
+            'expires_at': (datetime.now() + timedelta(hours=random.randint(4, 12))).isoformat(),
+            'active_status': 'active',
+            'source': 'kumapon',
+            'external_id': f'kp_mock_{i+1}',
+            'external_url': f'https://kumapon.jp/deals/2025062{i+1}kpd25600{i+1}',
+            'original_price': original_price,
+            'sale_price': sale_price,
+            'distance_meters': distance_m
+        }
+        
+        mock_coupons.append(mock_coupon)
+        logger.info(f"Generated mock Kumapon coupon: {mock_coupon['id']} - {mock_coupon['shop_name']}")
+    
+    return mock_coupons
