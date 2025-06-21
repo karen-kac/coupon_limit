@@ -21,6 +21,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const userMarkerRef = useRef<any>(null);
+  const isMapInitializedRef = useRef(false);
   const [showExplosion, setShowExplosion] = useState(false);
   const [useLottie, setUseLottie] = useState(true);
 
@@ -192,38 +194,59 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
 
     
     console.log(`✅ Total markers created: ${markersRef.current.length}`);
-    
-    // Center map if there are markers and no user interaction yet
-    if (markersRef.current.length > 0 && userLocation) {
-      try {
-        const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(new window.google.maps.LatLng(userLocation.lat, userLocation.lng));
-        markersRef.current.forEach(marker => {
-          bounds.extend(marker.getPosition());
-        });
-        mapInstanceRef.current.fitBounds(bounds);
-        
-        // Set maximum zoom level
-        window.google.maps.event.addListenerOnce(mapInstanceRef.current, 'bounds_changed', () => {
-          if (mapInstanceRef.current.getZoom() > 16) {
-            mapInstanceRef.current.setZoom(16);
-          }
-        });
-      } catch (error) {
-        console.warn('Failed to fit bounds:', error);
-      }
+    console.log('🔄 Markers updated (map view unchanged)');
+
+  }, [coupons, onCouponClick]);
+
+  const updateUserMarker = useCallback(() => {
+    if (!mapInstanceRef.current || !userLocation || !window.google) {
+      return;
     }
 
-  }, [coupons, onCouponClick, userLocation]);
+    // Remove existing user marker
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setMap(null);
+    }
+
+    // Create new user marker
+    const userMarker = new window.google.maps.Marker({
+      position: { lat: userLocation.lat, lng: userLocation.lng },
+      map: mapInstanceRef.current,
+      title: 'あなたの現在位置',
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="3"/>
+            <circle cx="12" cy="12" r="4" fill="white"/>
+            <circle cx="12" cy="12" r="2" fill="#4285F4"/>
+          </svg>
+        `),
+        scaledSize: new window.google.maps.Size(24, 24),
+        anchor: new window.google.maps.Point(12, 12)
+      },
+      zIndex: 1000
+    });
+
+    userMarkerRef.current = userMarker;
+    console.log('✅ User marker updated at:', userLocation);
+  }, [userLocation]);
 
   const initializeMap = useCallback(() => {
     console.log('🗺️ initializeMap called');
     console.log('userLocation:', !!userLocation);
     console.log('mapRef.current:', !!mapRef.current);
     console.log('window.google:', !!window.google);
+    console.log('isMapInitialized:', isMapInitializedRef.current);
     
     if (!userLocation || !mapRef.current || !window.google) {
       console.log('❌ initializeMap early return - missing dependencies');
+      return;
+    }
+
+    // マップが既に初期化されている場合は、ユーザーマーカーのみ更新
+    if (isMapInitializedRef.current && mapInstanceRef.current) {
+      console.log('🔄 Map already initialized, updating user marker only');
+      updateUserMarker();
       return;
     }
 
@@ -244,29 +267,12 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         fullscreenControl: false
       });
 
-      // Add user location marker
-      const userMarker = new window.google.maps.Marker({
-        position: { lat: userLocation.lat, lng: userLocation.lng },
-        map: map,
-        title: 'あなたの現在位置',
-        icon: {
-          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="3"/>
-              <circle cx="12" cy="12" r="4" fill="white"/>
-              <circle cx="12" cy="12" r="2" fill="#4285F4"/>
-            </svg>
-          `),
-          scaledSize: new window.google.maps.Size(24, 24),
-          anchor: new window.google.maps.Point(12, 12)
-        },
-        zIndex: 1000
-      });
-
-      console.log('✅ User marker created at:', userLocation);
-
       mapInstanceRef.current = map;
+      isMapInitializedRef.current = true;
       console.log('✅ Google Map instance created and stored');
+      
+      // Add user marker
+      updateUserMarker();
       
       // Trigger marker update after map is ready
       setTimeout(() => {
@@ -277,8 +283,9 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     } catch (error) {
       console.error('❌ Failed to initialize Google Map:', error);
     }
-  }, [userLocation, updateMarkers]);
+  }, [userLocation, updateMarkers, updateUserMarker]);
 
+  // Google Maps API の初期化（最初の一回のみ）
   useEffect(() => {
     // Google Maps APIキーのフォールバック - デモ用のAPIキーを使用
     const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyBFw0Qbyq9zTFTd-tUY6dpoWq2PVG7gA_M';
@@ -300,32 +307,35 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
           initializeMap();
         }
       };
-    } else if (window.google && userLocation && mapRef.current) {
-      console.log('✅ Google Maps already loaded, initializing map');
+    }
+  }, []); // 依存配列を空にして初回のみ実行
+
+  // マップの初期化（userLocationが利用可能になったとき）
+  useEffect(() => {
+    if (window.google && userLocation && mapRef.current) {
+      console.log('✅ Google Maps ready, initializing/updating map');
       initializeMap();
     }
   }, [userLocation, initializeMap]);
 
+  // クーポンデータの更新時のみマーカーを更新
   useEffect(() => {
     console.log('🔄 useEffect for updateMarkers triggered');
     console.log('mapInstanceRef.current exists:', !!mapInstanceRef.current);
-    console.log('userLocation exists:', !!userLocation);
     console.log('coupons count:', coupons.length);
     
-    if (mapInstanceRef.current && userLocation && window.google) {
+    if (mapInstanceRef.current && window.google) {
       console.log('✅ Calling updateMarkers...');
       // Small delay to ensure map is fully ready
       setTimeout(() => {
         updateMarkers();
       }, 50);
     } else {
-      console.log('⏳ updateMarkers not called - waiting for prerequisites');
+      console.log('⏳ updateMarkers not called - waiting for map instance');
       console.log('- Map instance:', !!mapInstanceRef.current);
-      console.log('- User location:', !!userLocation);
       console.log('- Google Maps:', !!window.google);
-      console.log('- Coupons:', coupons.length);
     }
-  }, [coupons, updateMarkers, userLocation]);
+  }, [coupons, updateMarkers]);
 
   if (error) {
     return (

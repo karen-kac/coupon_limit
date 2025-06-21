@@ -34,6 +34,7 @@ const authFetch = async (url: string, options: RequestInit = {}): Promise<Respon
   return fetch(url, {
     ...options,
     headers,
+    credentials: 'include',  // CORSで認証情報を含める
   });
 };
 

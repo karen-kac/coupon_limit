@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 import MapView from './components/MapView';
 import MyPage from './components/MyPage';
@@ -23,21 +23,39 @@ function MainApp() {
   const [showSplash, setShowSplash] = useState(true);
   const POLLING_INTERVAL = 30000; // 30秒ごとに更新
 
-  const loadCoupons = useCallback(async () => {
+  // データ比較用のヘルパー関数
+  const isDataEqual = useCallback((newData: any[], currentData: any[]) => {
+    if (newData.length !== currentData.length) return false;
+    return JSON.stringify(newData) === JSON.stringify(currentData);
+  }, []);
+
+  const loadCoupons = useCallback(async (isInitialLoad = false) => {
     if (!userLocation) {
       console.log('loadCoupons: No user location available');
       return;
     }
     
-    console.log('🔄 Loading coupons for location:', userLocation);
-    setLoading(true);
+    console.log('🔄 Loading coupons for location:', userLocation, isInitialLoad ? '(initial load)' : '(background update)');
+    
+    // 初回ロード時のみローディング状態をtrueにする
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     
     try {
       const data = await getCoupons(userLocation.lat, userLocation.lng);
       console.log('✅ Successfully loaded coupons:', data.length, 'items');
-      console.log('First few coupons:', data.slice(0, 3));
-
-      setCoupons(data);
+      
+      // データが同じ場合は更新をスキップ
+      setCoupons(prevCoupons => {
+        if (isDataEqual(data, prevCoupons)) {
+          console.log('📋 Coupons data unchanged, skipping update');
+          return prevCoupons;
+        }
+        console.log('🔄 Coupons data changed, updating:', data.length, 'items');
+        return data;
+      });
+      
       setError(null);
     } catch (error) {
       console.error('❌ Error loading coupons:', error);
@@ -75,36 +93,51 @@ function MainApp() {
       ];
       
       console.log('🔄 Using fallback mock coupons:', mockCoupons.length);
-      setCoupons(mockCoupons);
+      setCoupons(prevCoupons => {
+        if (isDataEqual(mockCoupons, prevCoupons)) {
+          return prevCoupons;
+        }
+        return mockCoupons;
+      });
       setError('クーポンの取得に失敗しましたが、テスト用データを表示しています');
     } finally {
-      setLoading(false);
+      // 初回ロード時のみローディング状態をfalseにする
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
-  }, [userLocation]);
+  }, [userLocation, isDataEqual]);
 
-  const loadUserCoupons = useCallback(async () => {
+  const loadUserCoupons = useCallback(async (isInitialLoad = false) => {
     if (!isAuthenticated) return;
     
     try {
       const data = await getUserCoupons();
-      setUserCoupons(data);
+      
+      // データが同じ場合は更新をスキップ
+      setUserCoupons(prevUserCoupons => {
+        if (isDataEqual(data, prevUserCoupons)) {
+          console.log('📋 User coupons data unchanged, skipping update');
+          return prevUserCoupons;
+        }
+        console.log('✅ User coupons data changed, updating:', data.length, 'items', isInitialLoad ? '(initial load)' : '(background update)');
+        return data;
+      });
     } catch (error) {
       console.error('Error loading user coupons:', error);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isDataEqual]);
 
-  // ユーザークーポンが変更されたときのフィルタリング
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  // フィルタリングされたクーポンをメモ化
+  const filteredCoupons = useMemo(() => {
+    if (!isAuthenticated) return coupons;
     
-    setCoupons(prevCoupons => {
-      const filteredCoupons = prevCoupons.filter((coupon: Coupon) => 
-        !userCoupons.some(uc => uc.coupon_id === coupon.id)
-      );
-      console.log('Filtered coupons after userCoupons update:', filteredCoupons);
-      return filteredCoupons;
-    });
-  }, [userCoupons, isAuthenticated]);
+    const filtered = coupons.filter((coupon: Coupon) => 
+      !userCoupons.some(uc => uc.coupon_id === coupon.id)
+    );
+    
+    return filtered;
+  }, [coupons, userCoupons, isAuthenticated]);
 
   // スプラッシュスクリーンと位置情報の取得
   useEffect(() => {
@@ -120,8 +153,8 @@ function MainApp() {
   useEffect(() => {
     if (!userLocation || !isAuthenticated) return;
 
-    loadCoupons();
-    loadUserCoupons();
+    loadCoupons(true); // 初回ロード時はローディング表示
+    loadUserCoupons(true);
   }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
 
   // ポーリング設定（別のuseEffect）
@@ -137,19 +170,6 @@ function MainApp() {
     };
   }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
 
-  // Debug effect to monitor coupon state changes
-  useEffect(() => {
-    console.log('🔄 Coupons state updated:', coupons.length, 'coupons');
-    if (coupons.length > 0) {
-      console.log('📍 Sample coupon locations:', coupons.slice(0, 3).map(c => ({
-        id: c.id,
-        name: c.store_name || c.shop_name,
-        location: c.location,
-        source: c.source,
-        distance: c.distance_meters
-      })));
-    }
-  }, [coupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -300,7 +320,7 @@ function MainApp() {
         {activeTab === 'map' ? (
           <MapView
             userLocation={userLocation}
-            coupons={coupons}
+            coupons={filteredCoupons}
             onCouponClick={setSelectedCoupon}
             error={error}
           />

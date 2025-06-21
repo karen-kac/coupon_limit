@@ -43,8 +43,8 @@ app.mount("/static-admin", StaticFiles(directory=admin_dir), name="static-admin"
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 開発中は全てのオリジンを許可
-    allow_credentials=False,  # allow_origins=["*"]の場合はFalseにする必要がある
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # 開発環境用
+    allow_credentials=True,  # 認証トークンを使用するためTrueに設定
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -409,57 +409,7 @@ async def get_coupons(
             )
         ]
 
-@app.post("/api/coupons/get")
-async def get_coupon(
-    request: GetCouponRequest, 
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific coupon if user is within range"""
-    coupon_repo = EnhancedCouponRepository(db)
-    store_repo = StoreRepository(db)
-    user_coupon_repo = EnhancedUserCouponRepository(db)
-    
-    # Find the coupon
-    coupon = coupon_repo.get_coupon_by_id(request.coupon_id)
-    if not coupon:
-        raise HTTPException(status_code=404, detail="Coupon not found")
-    
-    # Get store information
-    store = store_repo.get_store_by_id(coupon.store_id)
-    if not store:
-        raise HTTPException(status_code=404, detail="Store not found")
-    
-    # Check if user already has this coupon
-    if user_coupon_repo.check_user_has_coupon(current_user.id, request.coupon_id):
-        raise HTTPException(status_code=400, detail="Coupon already obtained")
-    
-    # Check distance (300 meters)
-    distance = calculate_distance(
-        request.user_location.lat, request.user_location.lng,
-        store.latitude, store.longitude
-    )
-    
-    if distance > 300:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Too far from coupon location (distance: {distance:.1f}m)"
-        )
-    
-    # Calculate current discount
-    current_discount = coupon_repo.calculate_current_discount(coupon)
-    
-    # Create user coupon
-    user_coupon = user_coupon_repo.create_user_coupon({
-        "user_id": current_user.id,
-        "coupon_id": coupon.id,
-        "discount_at_obtain": current_discount
-    })
-    
-    return {
-        "message": "Coupon obtained successfully", 
-        "coupon": user_coupon_to_dict(user_coupon)
-    }
+# Coupon get endpoint moved to api/coupon_routes.py to avoid duplication
 
 @app.get("/api/user/coupons")
 async def get_user_coupons(
