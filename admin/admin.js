@@ -722,6 +722,11 @@ class AdminApp {
                     <button onclick="adminApp.deleteCoupon('${coupon.id}')" class="delete-btn">
                         🗑️ 削除
                     </button>
+                    ${this.admin && this.admin.role === 'super_admin' ? `
+                    <button onclick="adminApp.deleteCoupon('${coupon.id}', true)" class="hard-delete-btn">
+                        ❌ 完全削除
+                    </button>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
@@ -1147,33 +1152,81 @@ class AdminApp {
     // Coupon actions
     async duplicateCoupon(couponId) {
         const coupon = this.coupons.find(c => c.id === couponId);
-        if (!coupon) return;
+        if (!coupon) {
+            this.showErrorNotification('クーポンが見つかりません');
+            return;
+        }
 
-        const now = new Date();
-        const defaultEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        try {
+            const now = new Date();
+            const defaultEnd = new Date(now.getTime() + 5 * 60 * 1000);
+            
+            // 日本時間に調整（UTC+9）
+            const jstOffset = 9 * 60 * 60 * 1000;
+            const nowJST = new Date(now.getTime() + jstOffset);
+            const defaultEndJST = new Date(defaultEnd.getTime() + jstOffset);
 
-        document.getElementById('coupon-title').value = `${coupon.title} (コピー)`;
-        document.getElementById('coupon-description').value = coupon.description || '';
-        document.getElementById('discount-initial').value = coupon.discount_rate_initial;
-        document.getElementById('start-time').value = now.toISOString().slice(0, 16);
-        document.getElementById('end-time').value = defaultEnd.toISOString().slice(0, 16);
+            // 基本情報をコピー
+            document.getElementById('coupon-title').value = `${coupon.title} (コピー)`;
+            document.getElementById('coupon-description').value = coupon.description || '';
+            document.getElementById('discount-initial').value = coupon.discount_rate_initial;
+            document.getElementById('start-time').value = nowJST.toISOString().slice(0, 16);
+            document.getElementById('end-time').value = defaultEndJST.toISOString().slice(0, 16);
 
-        await this.showCreateCouponModal();
+            // 割引スケジュールをコピー
+            if (coupon.discount_rate_schedule) {
+                this.discountSchedule = JSON.parse(JSON.stringify(coupon.discount_rate_schedule));
+            } else {
+                this.discountSchedule = [];
+            }
+            this.renderDiscountSchedule();
+
+            // まずモーダルを表示（店舗セレクターが初期化される）
+            await this.showCreateCouponModal();
+            
+            // モーダル初期化後に店舗選択を設定
+            if (this.admin && this.admin.role === 'super_admin' && coupon.store_id) {
+                const storeSelect = document.getElementById('coupon-store');
+                if (storeSelect) {
+                    storeSelect.value = coupon.store_id;
+                }
+            }
+
+            this.showSuccessNotification('クーポン情報をコピーしました');
+        } catch (error) {
+            console.error('Duplicate coupon error:', error);
+            this.showErrorNotification('クーポンの複製に失敗しました');
+        }
     }
 
-    async deleteCoupon(couponId) {
-        const confirmed = await this.showDeleteConfirm('このクーポン');
+    async deleteCoupon(couponId, hardDelete = false) {
+        const deleteType = hardDelete ? '完全削除' : '削除';
+        const confirmMessage = hardDelete ? 
+            'このクーポンを完全削除しますか？\n（データベースから完全に削除され、復元できません）' : 
+            'このクーポンを削除しますか？';
+            
+        const confirmed = await this.showDeleteConfirm(confirmMessage);
         if (!confirmed) return;
 
         try {
-            const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons/${couponId}`, {
+            const url = hardDelete ? 
+                `${this.API_BASE_URL}/admin/coupons/${couponId}?hard_delete=true` :
+                `${this.API_BASE_URL}/admin/coupons/${couponId}`;
+                
+            const response = await this.adminAuthFetch(url, {
                 method: 'DELETE'
             });
             
-            if (!response.ok) throw new Error('クーポンの削除に失敗しました');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `クーポンの${deleteType}に失敗しました`);
+            }
 
             this.loadCoupons();
-            this.showSuccessNotification('クーポンを削除しました');
+            const successMessage = hardDelete ? 
+                'クーポンを完全削除しました' : 
+                'クーポンを削除しました';
+            this.showSuccessNotification(successMessage);
         } catch (error) {
             this.showErrorNotification(error.message);
         }
