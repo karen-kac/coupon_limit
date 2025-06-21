@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Coupon, Location } from '../types';
+import ExplosionEffect from './ExplosionEffect';
+import './ExplosionEffect.css';
 
 interface MapViewProps {
   userLocation: Location | null;
@@ -19,6 +21,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [showExplosion, setShowExplosion] = useState(false);
+  const [useLottie, setUseLottie] = useState(true);
 
   // デバッグログを追加
   React.useEffect(() => {
@@ -28,31 +32,34 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }, [coupons, userLocation, error]);
 
   const updateMarkers = useCallback(() => {
-    console.log('updateMarkers called');
-    console.log('mapInstanceRef.current:', mapInstanceRef.current);
-    console.log('window.google:', window.google);
-    console.log('coupons to process:', coupons);
-    
-    if (!mapInstanceRef.current || !window.google) {
-      console.log('Early return: no map instance or google maps');
+    console.log('Calling updateMarkers...');
+    if (!mapInstanceRef.current) {
+      console.warn('Map instance not available');
       return;
     }
 
-    // Clear existing markers
+    // 既存のマーカーをクリア
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
 
-    // Add coupon markers
-    coupons.forEach((coupon, index) => {
-      console.log(`Processing coupon ${index}:`, coupon);
-      const isNearby = coupon.distance_meters !== undefined && coupon.distance_meters <= 300;
+    console.log('Processing coupons:', coupons);
+    coupons.forEach(coupon => {
+      if (!coupon.location) {
+        console.warn('Location information missing for coupon:', coupon);
+        return;
+      }
+
+      const position = {
+        lat: coupon.location.lat,
+        lng: coupon.location.lng
+      };
       
-      console.log(`Creating marker for coupon at lat: ${coupon.location.lat}, lng: ${coupon.location.lng}`);
+      console.log('Creating marker for store:', coupon.store_name || coupon.shop_name, 'at position:', position);
       
       const marker = new window.google.maps.Marker({
-        position: { lat: coupon.location.lat, lng: coupon.location.lng },
+        position,
         map: mapInstanceRef.current,
-                  title: coupon.store_name || coupon.shop_name, // shop_name または store_name に対応
+        title: `${coupon.store_name || coupon.shop_name} - ${coupon.title}`,
         icon: {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
             <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
@@ -64,11 +71,11 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
           `),
           scaledSize: new window.google.maps.Size(80, 80),
           anchor: new window.google.maps.Point(40, 75)
-        },
-        animation: isNearby ? window.google.maps.Animation.BOUNCE : undefined
+        }
       });
 
       marker.addListener('click', () => {
+        console.log('Marker clicked:', coupon);
         onCouponClick(coupon);
       });
 
@@ -229,8 +236,54 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   }
 
   return (
-    <div className="map-view">
+    <div className="map-view" style={{ position: 'relative' }}>
       <div ref={mapRef} className="map-container" style={{ width: '100%', height: '100%' }} />
+      
+      {/* デバッグ用爆発ボタン */}
+      <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 999 }}>
+        <button
+          onClick={() => setUseLottie(!useLottie)}
+          style={{
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            fontSize: '14px',
+            cursor: 'pointer',
+            marginBottom: '8px',
+            display: 'block',
+            width: '100%',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+        >
+          {useLottie ? '🎬 Lottie' : '💫 パーティクル'}
+        </button>
+        <button
+          onClick={() => setShowExplosion(true)}
+          style={{
+            backgroundColor: '#ff4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '10px 15px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            width: '100%',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+        >
+          💥 爆発テスト
+        </button>
+      </div>
+
+      {/* 爆発エフェクト */}
+      {showExplosion && (
+        <ExplosionEffect 
+          onComplete={() => setShowExplosion(false)} 
+          useLottie={useLottie}
+        />
+      )}
     </div>
   );
 };

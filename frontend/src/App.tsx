@@ -20,14 +20,16 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const POLLING_INTERVAL = 30000; // 30秒ごとに更新
 
   const loadCoupons = useCallback(async () => {
     if (!userLocation) return;
     
     try {
-      console.log('Loading coupons for location:', userLocation);
+
+      console.log('Fetching coupons for location:', userLocation);
       const data = await getCoupons(userLocation.lat, userLocation.lng);
-      console.log('Loaded coupons:', data);
+      console.log('Received coupons from API:', data);
       setCoupons(data);
       // Clear any previous errors on successful load
       setError(null);
@@ -51,6 +53,20 @@ function MainApp() {
     }
   }, [isAuthenticated]);
 
+  // ユーザークーポンが変更されたときのフィルタリング
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    setCoupons(prevCoupons => {
+      const filteredCoupons = prevCoupons.filter((coupon: Coupon) => 
+        !userCoupons.some(uc => uc.coupon_id === coupon.id)
+      );
+      console.log('Filtered coupons after userCoupons update:', filteredCoupons);
+      return filteredCoupons;
+    });
+  }, [userCoupons, isAuthenticated]);
+
+  // スプラッシュスクリーンと位置情報の取得
   useEffect(() => {
     getCurrentLocation();
     // スプラッシュスクリーンを2.5秒後に非表示
@@ -60,12 +76,26 @@ function MainApp() {
     return () => clearTimeout(timer);
   }, []);
 
+  // 初回データ取得のみ
   useEffect(() => {
-    if (userLocation) {
-      loadCoupons();
-      loadUserCoupons();
-    }
-  }, [userLocation, loadCoupons, loadUserCoupons]);
+    if (!userLocation || !isAuthenticated) return;
+
+    loadCoupons();
+    loadUserCoupons();
+  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
+
+  // ポーリング設定（別のuseEffect）
+  useEffect(() => {
+    if (!userLocation || !isAuthenticated) return;
+
+    const couponInterval = setInterval(loadCoupons, POLLING_INTERVAL);
+    const userCouponInterval = setInterval(loadUserCoupons, POLLING_INTERVAL);
+
+    return () => {
+      clearInterval(couponInterval);
+      clearInterval(userCouponInterval);
+    };
+  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
