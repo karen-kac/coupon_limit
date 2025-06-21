@@ -431,10 +431,15 @@ class AdminApp {
 
     initializeDefaultTimes() {
         const now = new Date();
-        const defaultEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const defaultEnd = new Date(now.getTime() + 5 * 60 * 1000);
         
-        document.getElementById('start-time').value = now.toISOString().slice(0, 16);
-        document.getElementById('end-time').value = defaultEnd.toISOString().slice(0, 16);
+        // 日本時間に調整（UTC+9）
+        const jstOffset = 9 * 60 * 60 * 1000;
+        const nowJST = new Date(now.getTime() + jstOffset);
+        const defaultEndJST = new Date(defaultEnd.getTime() + jstOffset);
+        
+        document.getElementById('start-time').value = nowJST.toISOString().slice(0, 16);
+        document.getElementById('end-time').value = defaultEndJST.toISOString().slice(0, 16);
     }
 
     // Authentication handlers
