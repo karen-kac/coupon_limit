@@ -945,14 +945,27 @@ body {
   border-bottom: none;
 }
 
-.info-label {
+.settings-view .info-label {
   font-size: 14px;
   color: #666;
   margin-bottom: 6px;
   font-weight: 500;
 }
 
-.info-value {
+.settings-view .info-value {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.my-coupon-detail .info-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.my-coupon-detail .info-value {
   font-size: 16px;
   color: #333;
   font-weight: 600;
