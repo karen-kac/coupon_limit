@@ -4,9 +4,11 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 interface ExplosionEffectProps {
   onComplete: () => void;
   useLottie?: boolean;
+  useWebM?: boolean;
+  isDebug?: boolean;
 }
 
-const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie = true }) => {
+const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie = true, useWebM = false, isDebug = false }) => {
   const [particles, setParticles] = useState<Array<{
     id: number;
     x: number;
@@ -19,15 +21,23 @@ const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie
   }>>([]);
 
   useEffect(() => {
-    // Lottieアニメーション用タイマー（10秒で強制終了）
-    if (useLottie) {
+    // WebM動画用タイマー（10秒で強制終了）
+    if (useWebM) {
       const fallbackTimer = setTimeout(() => {
         onComplete();
       }, 10000); // 10秒で強制終了
       return () => clearTimeout(fallbackTimer);
     }
 
-    if (!useLottie) {
+    // Lottieアニメーション用タイマー（10秒で強制終了）
+    if (useLottie && !useWebM) {
+      const fallbackTimer = setTimeout(() => {
+        onComplete();
+      }, 10000); // 10秒で強制終了
+      return () => clearTimeout(fallbackTimer);
+    }
+
+    if (!useLottie && !useWebM) {
       const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
       const emojis = ['💫', '⭐', '✨', '💥', '🎆', '🌟'];
       
@@ -51,7 +61,33 @@ const ExplosionEffect: React.FC<ExplosionEffectProps> = ({ onComplete, useLottie
 
       return () => clearTimeout(timer);
     }
-  }, [onComplete, useLottie]);
+  }, [onComplete, useLottie, useWebM]);
+
+  if (useWebM) {
+    // デバッグモードは全画面、通常モードはクーポンサイズの2-3倍
+    const explosionSize = isDebug ? { width: '100vw', height: '100vh' } : { width: '180px', height: '180px' };
+    const explosionPosition = isDebug 
+      ? { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+      : { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+
+    return (
+      <div className="explosion-container webm-explosion">
+        <video
+          autoPlay
+          muted
+          onEnded={onComplete}
+          style={{
+            ...explosionSize,
+            objectFit: 'cover',
+            ...explosionPosition,
+            zIndex: 9999
+          } as React.CSSProperties}
+        >
+          <source src={require('../assets/animations/burn2.webm')} type="video/webm" />
+        </video>
+      </div>
+    );
+  }
 
   if (useLottie) {
     return (
