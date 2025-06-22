@@ -104,6 +104,50 @@ class StoreRepository:
             self.db.commit()
             self.db.refresh(store)
         return store
+    
+    def delete_store(self, store_id: str, hard_delete: bool = False) -> bool:
+        """Delete a store (soft delete by default, hard delete if requested)"""
+        store = self.get_store_by_id(store_id)
+        if not store:
+            return False
+        
+        if hard_delete:
+            # Hard delete: Remove from database completely
+            # First, need to handle cascading deletions or related data
+            # For now, only allow if no related coupons exist
+            coupon_count = self.db.query(Coupon).filter(Coupon.store_id == store_id).count()
+            if coupon_count > 0:
+                raise ValueError(f"Cannot delete store with {coupon_count} associated coupons. Delete coupons first.")
+            
+            # Also check for admin accounts linked to this store
+            admin_count = self.db.query(Admin).filter(Admin.linked_store_id == store_id).count()
+            if admin_count > 0:
+                # Unlink admin accounts before deletion
+                self.db.query(Admin).filter(Admin.linked_store_id == store_id).update({"linked_store_id": None})
+            
+            self.db.delete(store)
+        else:
+            # Soft delete: Mark as inactive
+            store.is_active = False
+            store.updated_at = datetime.now()
+        
+        self.db.commit()
+        return True
+    
+    def get_store_with_coupon_count(self, store_id: str) -> Optional[dict]:
+        """Get store info with related coupon count"""
+        store = self.get_store_by_id(store_id)
+        if not store:
+            return None
+        
+        coupon_count = self.db.query(Coupon).filter(Coupon.store_id == store_id).count()
+        admin_count = self.db.query(Admin).filter(Admin.linked_store_id == store_id).count()
+        
+        return {
+            "store": store,
+            "coupon_count": coupon_count,
+            "admin_count": admin_count
+        }
 
 class EnhancedCouponRepository:
     def __init__(self, db: Session):

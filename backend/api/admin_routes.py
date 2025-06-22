@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from supabase_client import get_db
 from models import User, Store, Coupon, UserCoupon, Admin
-from auth import get_password_hash, verify_password, create_access_token, verify_token
+from auth import get_password_hash, verify_password, create_access_token, verify_token, get_current_admin
 
 router = APIRouter()
 security = HTTPBearer()
@@ -103,35 +103,7 @@ class UserCouponDetail(BaseModel):
     status: str
     used_at: Optional[datetime]
 
-def get_current_admin_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> Admin:
-    """Get current admin user from JWT token"""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="管理者認証が必要です",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    token = credentials.credentials
-    payload = verify_token(token)
-    
-    if payload is None:
-        raise credentials_exception
-    
-    admin_id: str = payload.get("sub")
-    user_type: str = payload.get("type")
-    
-    if admin_id is None or user_type != "admin":
-        raise credentials_exception
-    
-    admin = db.query(Admin).filter(
-        Admin.id == admin_id,
-        Admin.is_active == True
-    ).first()
-    
-    if not admin:
-        raise credentials_exception
-    
-    return admin
+# Use the get_current_admin function from auth.py
 
 # Admin authentication endpoints
 @router.post("/auth/register", response_model=AdminTokenResponse)
@@ -263,7 +235,7 @@ async def login_admin(admin_data: AdminLogin, db: Session = Depends(get_db)):
     )
 
 @router.get("/auth/me", response_model=AdminResponse)
-async def get_current_admin_user_info(current_admin: Admin = Depends(get_current_admin_user)):
+async def get_current_admin_info(current_admin: Admin = Depends(get_current_admin)):
     """Get current admin information"""
     return AdminResponse(
         id=str(current_admin.id),
@@ -295,7 +267,7 @@ async def verify_admin_token(credentials: HTTPAuthorizationCredentials = Depends
 
 @router.get("/stats", response_model=AdminStats)
 async def get_admin_stats(
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Get admin dashboard statistics"""
@@ -325,7 +297,7 @@ async def get_admin_stats(
 
 @router.get("/stores", response_model=List[StoreResponse])
 async def get_stores(
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Get all stores (super admin) or linked store (store owner)"""
@@ -352,7 +324,7 @@ async def get_stores(
 @router.post("/stores", response_model=StoreResponse)
 async def create_store(
     store_data: StoreCreate,
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Create a new store"""
@@ -413,7 +385,7 @@ async def create_store(
 
 @router.get("/coupons", response_model=List[CouponResponse])
 async def get_coupons(
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Get all coupons for admin"""
@@ -448,7 +420,7 @@ async def get_coupons(
 @router.post("/coupons", response_model=CouponResponse)
 async def create_coupon(
     coupon_data: CouponCreate,
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Create a new coupon"""
@@ -512,7 +484,7 @@ async def create_coupon(
 async def delete_coupon(
     coupon_id: str,
     hard_delete: bool = False,
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Delete a coupon (soft delete by default, hard delete if specified)"""
@@ -558,10 +530,120 @@ async def delete_coupon(
         db.rollback()
         raise HTTPException(status_code=500, detail="クーポンの削除に失敗しました")
 
+@router.delete("/stores/{store_id}")
+async def delete_store(
+    store_id: str,
+    hard_delete: bool = False,
+    admin: Admin = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Delete a store (soft delete by default, hard delete if specified)"""
+    
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="店舗が見つかりません")
+    
+    # Check permissions
+    if admin.role == "store_owner" and store_id != admin.linked_store_id:
+        raise HTTPException(
+            status_code=403,
+            detail="自分の店舗のみ削除できます"
+        )
+    
+    # Only super_admin can perform hard delete
+    if hard_delete and admin.role != "super_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="完全削除はスーパー管理者のみ実行できます"
+        )
+    
+    try:
+        # Check for associated coupons
+        coupon_count = db.query(Coupon).filter(Coupon.store_id == store_id).count()
+        
+        if hard_delete:
+            # Hard delete - completely remove from database
+            if coupon_count > 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"関連するクーポン({coupon_count}件)が存在するため削除できません。先にクーポンを削除してください。"
+                )
+            
+            # Unlink admin accounts before deletion
+            db.query(Admin).filter(Admin.linked_store_id == store_id).update({"linked_store_id": None})
+            
+            # Delete store
+            db.delete(store)
+            db.commit()
+            
+            return {"message": "店舗を完全削除しました", "store_id": store_id, "hard_delete": True}
+        else:
+            # Soft delete by setting is_active to False
+            store.is_active = False
+            store.updated_at = datetime.now()
+            db.commit()
+            
+            message = "店舗を削除しました"
+            if coupon_count > 0:
+                message += f"（関連クーポン{coupon_count}件は無効化されました）"
+            
+            return {"message": message, "store_id": store_id, "hard_delete": False, "coupon_count": coupon_count}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="店舗の削除に失敗しました")
+
+@router.get("/stores/info/{store_id}")
+async def get_store_deletion_info(
+    store_id: str,
+    admin: Admin = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Get store information before deletion including related data counts"""
+    
+    try:
+        store = db.query(Store).filter(Store.id == store_id).first()
+        if not store:
+            raise HTTPException(status_code=404, detail="店舗が見つかりません")
+        
+        # Check permissions
+        if admin.role == "store_owner" and store_id != admin.linked_store_id:
+            raise HTTPException(
+                status_code=403,
+                detail="自分の店舗の情報のみ取得できます"
+            )
+        
+        # Count related data
+        coupon_count = db.query(Coupon).filter(Coupon.store_id == store_id).count()
+        admin_count = db.query(Admin).filter(Admin.linked_store_id == store_id).count()
+        
+        return {
+            "store": {
+                "id": store.id,
+                "name": store.name,
+                "description": store.description,
+                "address": store.address,
+                "is_active": store.is_active,
+                "owner_email": store.owner_email,
+                "created_at": store.created_at.isoformat() if store.created_at else None
+            },
+            "related_data": {
+                "coupon_count": coupon_count,
+                "admin_count": admin_count,
+                "can_hard_delete": coupon_count == 0
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"店舗情報の取得に失敗しました: {str(e)}")
+
 @router.get("/coupons/{coupon_id}/users", response_model=List[UserCouponDetail])
 async def get_coupon_users(
     coupon_id: str,
-    admin: Admin = Depends(get_current_admin_user),
+    admin: Admin = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Get users who obtained a specific coupon"""

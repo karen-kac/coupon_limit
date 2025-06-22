@@ -531,6 +531,8 @@ async def simple_coupon_test():
     
     return {"external_coupons": mock_coupons, "count": len(mock_coupons)}
 
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""

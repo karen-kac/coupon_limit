@@ -229,6 +229,29 @@
                         </button>
                     </div>
 
+                    <!-- Coupon Filters -->
+                    <div class="coupon-filters">
+                        <div class="filter-group">
+                            <label for="store-filter">店舗でフィルター:</label>
+                            <select id="store-filter" class="filter-select">
+                                <option value="">すべての店舗</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="status-filter">ステータスでフィルター:</label>
+                            <select id="status-filter" class="filter-select">
+                                <option value="">すべてのステータス</option>
+                                <option value="active">アクティブ</option>
+                                <option value="expired">期限切れ</option>
+                                <option value="exploded">爆発済み</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button id="reset-filters" class="reset-filters-btn">フィルターをリセット</button>
+                            <span id="filter-count" class="filter-count"></span>
+                        </div>
+                    </div>
+
                     <div id="coupons-error" class="error-banner" style="display: none;"></div>
 
                     <div id="coupons-grid" class="coupons-grid">
