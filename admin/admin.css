@@ -469,6 +469,106 @@ body {
     color: #e6543a;
 }
 
+/* Coupon Filters */
+.coupon-filters {
+    background: #faf1e6;
+    border: 1px solid #f8dbc1;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 200px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #4a4a4a;
+    white-space: nowrap;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 2px solid #f8dbc1;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fdf7f1;
+    color: #333333;
+    min-width: 150px;
+    transition: border-color 0.3s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #e6543a;
+    box-shadow: 0 0 0 2px rgba(230, 84, 58, 0.1);
+}
+
+.filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.reset-filters-btn {
+    background: #e6543a;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.reset-filters-btn:hover {
+    background: #f8dbc1;
+    color: #e6543a;
+}
+
+.filter-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e6543a;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .coupon-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .filter-group {
+        min-width: unset;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    
+    .filter-select {
+        min-width: unset;
+        width: 100%;
+    }
+    
+    .filter-actions {
+        margin-left: 0;
+        justify-content: space-between;
+    }
+}
+
 /* Cards Grid */
 .coupons-grid,
 .stores-grid {
@@ -503,6 +603,150 @@ body {
     color: #e6543a;
     margin-bottom: 8px;
     font-weight: 600;
+}
+
+.coupon-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+}
+
+.coupon-store {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    background: #f8dbc1;
+    padding: 4px 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.coupon-content {
+    padding: 0 20px 20px;
+}
+
+.coupon-description {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    min-height: 20px;
+}
+
+.coupon-details {
+    background: #fdf7f1;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #888;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.discount-highlight {
+    color: #e6543a;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.coupon-actions {
+    padding: 0 20px 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.action-btn.primary {
+    background: #e6543a;
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background: #d44325;
+    transform: translateY(-1px);
+}
+
+.action-btn.secondary {
+    background: #f8dbc1;
+    color: #e6543a;
+    border: 1px solid #e6543a;
+}
+
+.action-btn.secondary:hover {
+    background: #e6543a;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.action-btn.danger {
+    background: #ff6b6b;
+    color: white;
+}
+
+.action-btn.danger:hover {
+    background: #ff5252;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .detail-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .coupon-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn {
+        min-width: auto;
+    }
 }
 
 .coupon-status,
@@ -564,12 +808,9 @@ body {
     border-top: 1px solid #f8dbc1;
 }
 
-.view-users-btn,
-.duplicate-btn,
-.delete-btn,
+/* Store management buttons */
 .view-location-btn,
-.edit-btn,
-.hard-delete-btn {
+.edit-btn {
     padding: 6px 12px;
     border: none;
     border-radius: 6px;
@@ -577,65 +818,81 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: 500;
-}
-
-.view-users-btn {
     background: #f8dbc1;
     color: #e6543a;
 }
 
-.view-users-btn:hover {
-    background: #e6543a;
-    color: white;
-}
-
-.duplicate-btn {
-    background: #faf1e6;
-    color: #e6543a;
-}
-
-.duplicate-btn:hover {
-    background: #f8dbc1;
-}
-
-.delete-btn {
-    background: #fee;
-    color: #e6543a;
-}
-
-.delete-btn:hover {
-    background: #f8dbc1;
-}
-
-.hard-delete-btn {
-    background: #ffe6e6;
-    color: #cc3333;
-    font-weight: 600;
-}
-
-.hard-delete-btn:hover {
-    background: #ffcccc;
-    color: #aa2222;
-}
-
-.view-location-btn {
-    background: #f8dbc1;
-    color: #e6543a;
-}
-
-.view-location-btn:hover {
-    background: #e6543a;
-    color: white;
-}
-
-.edit-btn {
-    background: #f8dbc1;
-    color: #e6543a;
-}
-
+.view-location-btn:hover,
 .edit-btn:hover {
     background: #e6543a;
     color: white;
+}
+
+/* Store specific styles */
+.store-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+}
+
+.store-owner {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    background: #e8f4fd;
+    padding: 4px 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.store-content {
+    padding: 0 20px 20px;
+}
+
+.store-description {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    min-height: 20px;
+}
+
+.store-details {
+    background: #f0f8ff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.store-status.active {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.store-status.inactive {
+    background: #ffebee;
+    color: #c62828;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.store-actions {
+    padding: 0 20px 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .empty-state {

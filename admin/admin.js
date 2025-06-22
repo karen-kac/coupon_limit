@@ -12,6 +12,11 @@ class AdminApp {
             { time_remain_min: 10, rate: 50 }
         ];
         this.notificationContainer = null;
+        this.currentFilters = {
+            store: '',
+            status: ''
+        };
+        this.filteredCoupons = [];
         this.init();
     }
 
@@ -360,6 +365,9 @@ class AdminApp {
 
         // Forms
         this.setupFormEventListeners();
+
+        // Filters
+        this.setupFilterEventListeners();
     }
 
     setupModalEventListeners() {
@@ -427,6 +435,53 @@ class AdminApp {
         // Initialize default times
         this.initializeDefaultTimes();
         this.renderDiscountSchedule();
+    }
+
+    setupFilterEventListeners() {
+        try {
+            // Store filter
+            const storeFilter = document.getElementById('store-filter');
+            if (storeFilter) {
+                storeFilter.addEventListener('change', (e) => {
+                    try {
+                        this.currentFilters.store = e.target.value;
+                        this.applyFilters();
+                    } catch (error) {
+                        console.error('Error applying store filter:', error);
+                        this.showErrorNotification('店舗フィルターの適用中にエラーが発生しました');
+                    }
+                });
+            }
+
+            // Status filter
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', (e) => {
+                    try {
+                        this.currentFilters.status = e.target.value;
+                        this.applyFilters();
+                    } catch (error) {
+                        console.error('Error applying status filter:', error);
+                        this.showErrorNotification('ステータスフィルターの適用中にエラーが発生しました');
+                    }
+                });
+            }
+
+            // Reset filters
+            const resetButton = document.getElementById('reset-filters');
+            if (resetButton) {
+                resetButton.addEventListener('click', () => {
+                    try {
+                        this.resetFilters();
+                    } catch (error) {
+                        console.error('Error resetting filters:', error);
+                        this.showErrorNotification('フィルターのリセット中にエラーが発生しました');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error setting up filter event listeners:', error);
+        }
     }
 
     initializeDefaultTimes() {
@@ -660,11 +715,25 @@ class AdminApp {
     async loadCoupons() {
         this.showLoading();
         try {
+            // Reset filters when loading coupons
+            this.currentFilters = { store: '', status: '' };
+            
+            // Load stores first if not already loaded (for super admin)
+            if (this.admin && this.admin.role === 'super_admin' && (!this.stores || this.stores.length === 0)) {
+                await this.loadStores();
+            }
+            
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/coupons`);
             if (!response.ok) throw new Error('クーポン一覧の取得に失敗しました');
             
             this.coupons = await response.json();
-            this.renderCoupons();
+            console.log('Raw coupons loaded:', this.coupons); // デバッグ用
+            
+            // Add store information to coupons if missing
+            this.enrichCouponsWithStoreInfo();
+            
+            this.populateStoreFilter();
+            this.resetFilters(); // Reset UI filters too
             
             document.getElementById('coupons-error').style.display = 'none';
         } catch (error) {
@@ -674,8 +743,225 @@ class AdminApp {
         }
     }
 
+    enrichCouponsWithStoreInfo() {
+        if (!this.stores || this.stores.length === 0) {
+            console.log('No stores available for enrichment'); // デバッグ用
+            return;
+        }
+
+        this.coupons = this.coupons.map(coupon => {
+            // Normalize coupon data structure
+            const normalizedCoupon = {
+                ...coupon,
+                store_id: coupon.store_id || coupon.storeId,
+                active_status: coupon.active_status || coupon.status || this.calculateCouponStatus(coupon)
+            };
+
+            // If coupon already has store_name, keep it but ensure store_id is consistent
+            if (normalizedCoupon.store_name && normalizedCoupon.store_id) {
+                return normalizedCoupon;
+            }
+
+            // Find store information from stores array
+            const storeId = normalizedCoupon.store_id;
+            const store = this.stores.find(s => String(s.id) === String(storeId));
+            
+            if (store) {
+                return {
+                    ...normalizedCoupon,
+                    store_name: store.name,
+                    store_id: String(store.id) // Ensure string consistency
+                };
+            }
+            
+            // If no store found, at least provide a fallback
+            return {
+                ...normalizedCoupon,
+                store_name: normalizedCoupon.store_name || `店舗 ${storeId || 'unknown'}`,
+                store_id: String(storeId || '')
+            };
+        });
+
+        console.log('Enriched coupons with store info:', this.coupons); // デバッグ用
+    }
+
+    populateStoreFilter() {
+        const storeFilter = document.getElementById('store-filter');
+        if (!storeFilter) {
+            console.error('Store filter element not found');
+            return;
+        }
+        
+        const currentValue = storeFilter.value;
+        
+        // Clear existing options except "all stores"
+        while (storeFilter.children.length > 1) {
+            storeFilter.removeChild(storeFilter.lastChild);
+        }
+
+        console.log('Populating store filter with coupons:', this.coupons); // デバッグ用
+
+        // Get unique stores from coupons (primary source)
+        const uniqueStores = new Map();
+        
+        // First, try to get stores from coupon data
+        if (this.coupons && this.coupons.length > 0) {
+            this.coupons.forEach(coupon => {
+                const storeId = coupon.store_id;
+                const storeName = coupon.store_name;
+                
+                if (storeId && storeName) {
+                    uniqueStores.set(String(storeId), storeName);
+                }
+            });
+        }
+
+        // If no stores found from coupons, use the stores array as fallback
+        if (uniqueStores.size === 0 && this.stores && this.stores.length > 0) {
+            console.log('Using stores from this.stores as fallback:', this.stores); // デバッグ用
+            this.stores.forEach(store => {
+                uniqueStores.set(String(store.id), store.name);
+            });
+        }
+
+        console.log('Unique stores found for filter:', uniqueStores); // デバッグ用
+
+        // Add store options
+        uniqueStores.forEach((storeName, storeId) => {
+            const option = document.createElement('option');
+            option.value = storeId;
+            option.textContent = storeName;
+            storeFilter.appendChild(option);
+        });
+
+        // Restore previous selection if valid
+        if (currentValue && Array.from(storeFilter.options).some(option => option.value === currentValue)) {
+            storeFilter.value = currentValue;
+        }
+        
+        console.log('Store filter populated with', uniqueStores.size, 'options'); // デバッグ用
+    }
+
+    applyFilters() {
+        try {
+            console.log('Applying filters:', this.currentFilters); // デバッグ用
+            
+            // Ensure coupons array exists
+            if (!this.coupons || !Array.isArray(this.coupons)) {
+                console.warn('No coupons available for filtering');
+                this.filteredCoupons = [];
+                this.renderCoupons();
+                this.updateFilterCount();
+                return;
+            }
+            
+            console.log('Total coupons before filtering:', this.coupons.length); // デバッグ用
+            
+            let filtered = [...this.coupons];
+
+            // Apply store filter
+            if (this.currentFilters.store && this.currentFilters.store.trim() !== '') {
+                console.log('Filtering by store:', this.currentFilters.store); // デバッグ用
+                filtered = filtered.filter(coupon => {
+                    try {
+                        const storeId = coupon.store_id;
+                        // Convert both to strings for comparison and handle null/undefined
+                        const couponStoreId = String(storeId || '');
+                        const filterStoreId = String(this.currentFilters.store || '');
+                        const matches = couponStoreId === filterStoreId;
+                        console.log('Coupon store ID:', couponStoreId, 'Filter value:', filterStoreId, 'Matches:', matches); // デバッグ用
+                        return matches;
+                    } catch (error) {
+                        console.error('Error filtering coupon by store:', error, coupon);
+                        return false; // Exclude invalid coupons
+                    }
+                });
+                console.log('After store filter:', filtered.length); // デバッグ用
+            }
+
+            // Apply status filter
+            if (this.currentFilters.status && this.currentFilters.status.trim() !== '') {
+                console.log('Filtering by status:', this.currentFilters.status); // デバッグ用
+                filtered = filtered.filter(coupon => {
+                    try {
+                        const status = coupon.active_status || this.calculateCouponStatus(coupon);
+                        const matches = status === this.currentFilters.status;
+                        console.log('Coupon status:', status, 'Expected:', this.currentFilters.status, 'Matches:', matches); // デバッグ用
+                        return matches;
+                    } catch (error) {
+                        console.error('Error filtering coupon by status:', error, coupon);
+                        return false; // Exclude invalid coupons
+                    }
+                });
+                console.log('After status filter:', filtered.length); // デバッグ用
+            }
+
+            this.filteredCoupons = filtered;
+            console.log('Final filtered coupons:', filtered.length); // デバッグ用
+            this.renderCoupons();
+            this.updateFilterCount();
+        } catch (error) {
+            console.error('Error in applyFilters:', error);
+            this.showErrorNotification('フィルターの適用中にエラーが発生しました');
+            // Fallback: show all coupons
+            this.filteredCoupons = this.coupons || [];
+            this.renderCoupons();
+            this.updateFilterCount();
+        }
+    }
+
+    resetFilters() {
+        try {
+            this.currentFilters = {
+                store: '',
+                status: ''
+            };
+            
+            // Reset filter UI elements safely
+            const storeFilter = document.getElementById('store-filter');
+            if (storeFilter) {
+                storeFilter.value = '';
+            }
+            
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.value = '';
+            }
+            
+            this.applyFilters();
+            console.log('Filters reset successfully');
+        } catch (error) {
+            console.error('Error resetting filters:', error);
+            this.showErrorNotification('フィルターのリセット中にエラーが発生しました');
+        }
+    }
+
+    updateFilterCount() {
+        try {
+            const countElement = document.getElementById('filter-count');
+            if (!countElement) {
+                console.warn('Filter count element not found');
+                return;
+            }
+            
+            const totalCount = (this.coupons && Array.isArray(this.coupons)) ? this.coupons.length : 0;
+            const filteredCount = (this.filteredCoupons && Array.isArray(this.filteredCoupons)) ? this.filteredCoupons.length : 0;
+            
+            if (totalCount === filteredCount) {
+                countElement.textContent = `${totalCount} 件のクーポン`;
+            } else {
+                countElement.textContent = `${filteredCount} / ${totalCount} 件のクーポン`;
+            }
+            
+            console.log('Filter count updated:', { totalCount, filteredCount });
+        } catch (error) {
+            console.error('Error updating filter count:', error);
+        }
+    }
+
     renderCoupons() {
         const container = document.getElementById('coupons-grid');
+        const couponsToRender = this.filteredCoupons || this.coupons;
         
         if (this.coupons.length === 0) {
             container.innerHTML = `
@@ -687,68 +973,111 @@ class AdminApp {
             return;
         }
 
-        container.innerHTML = this.coupons.map(coupon => `
+        if (couponsToRender.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>フィルター条件に一致するクーポンがありません</p>
+                    <button onclick="adminApp.resetFilters()">フィルターをリセット</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = couponsToRender.map(coupon => {
+            const status = coupon.active_status || this.calculateCouponStatus(coupon);
+            const storeName = coupon.store_name || `店舗 ${coupon.store_id || 'unknown'}`;
+            
+            return `
             <div class="coupon-card">
                 <div class="coupon-header">
                     <h3>${this.escapeHtml(coupon.title)}</h3>
-                    <span class="coupon-status" style="color: ${this.getStatusColor(coupon.active_status)}">
-                        ${this.getStatusText(coupon.active_status)}
-                    </span>
+                    <div class="coupon-meta">
+                        <span class="coupon-store">${this.escapeHtml(storeName)}</span>
+                        <span class="coupon-status" style="color: ${this.getStatusColor(status)}">
+                            ${this.getStatusText(status)}
+                        </span>
+                    </div>
                 </div>
+                
                 <div class="coupon-content">
                     <p class="coupon-description">${this.escapeHtml(coupon.description || '')}</p>
                     <div class="coupon-details">
-                        <div class="detail-item">
-                            <strong>初期割引率:</strong> ${coupon.discount_rate_initial}%
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">初期割引率:</span>
+                                <span class="detail-value">${coupon.discount_rate_initial}%</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">現在割引率:</span>
+                                <span class="detail-value discount-highlight">${coupon.current_discount || coupon.discount_rate_initial}%</span>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <strong>現在の割引率:</strong> ${coupon.current_discount}%
-                        </div>
-                        <div class="detail-item">
-                            <strong>開始時間:</strong> ${this.formatDateTime(coupon.start_time)}
-                        </div>
-                        <div class="detail-item">
-                            <strong>終了時間:</strong> ${this.formatDateTime(coupon.end_time)}
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">開始時間:</span>
+                                <span class="detail-value">${this.formatDateTime(coupon.start_time)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">終了時間:</span>
+                                <span class="detail-value">${this.formatDateTime(coupon.end_time)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
                 <div class="coupon-actions">
-                    <button onclick="adminApp.viewCouponUsers('${coupon.id}')" class="view-users-btn">
+                    <button onclick="adminApp.viewCouponUsers('${coupon.id}')" class="action-btn primary">
                         📊 利用者を見る
                     </button>
-                    <button onclick="adminApp.duplicateCoupon('${coupon.id}')" class="duplicate-btn">
+                    <button onclick="adminApp.duplicateCoupon('${coupon.id}')" class="action-btn secondary">
                         📋 複製
                     </button>
-                    <button onclick="adminApp.deleteCoupon('${coupon.id}')" class="delete-btn">
-                        🗑️ 削除
-                    </button>
                     ${this.admin && this.admin.role === 'super_admin' ? `
-                    <button onclick="adminApp.deleteCoupon('${coupon.id}', true)" class="hard-delete-btn">
-                        ❌ 完全削除
+                    <button onclick="adminApp.deleteCoupon('${coupon.id}', true)" class="action-btn danger">
+                        🗑️ 削除
                     </button>
                     ` : ''}
                 </div>
-            </div>
-        `).join('');
+            </div>`
+        }).join('');
     }
 
     // Store management (Super Admin only)
     async loadStores() {
-        if (this.admin.role !== 'super_admin') return;
+        // Skip loading overlay if called from loadCoupons
+        const calledFromCoupons = new Error().stack.includes('loadCoupons');
         
-        this.showLoading();
+        if (!calledFromCoupons) {
+            this.showLoading();
+        }
+        
         try {
             const response = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/stores`);
             if (!response.ok) throw new Error('店舗一覧の取得に失敗しました');
             
             this.stores = await response.json();
-            this.renderStores();
+            console.log('Loaded stores:', this.stores); // デバッグ用
+            
+            // Only render stores if we're in stores view
+            if (this.currentView === 'stores') {
+                this.renderStores();
+            }
             
             document.getElementById('stores-error').style.display = 'none';
         } catch (error) {
-            this.showError('stores-error', error.message);
+            console.error('Failed to load stores:', error); // デバッグ用
+            if (this.currentView === 'stores') {
+                this.showError('stores-error', error.message);
+            }
+            // For store owners, try to get their own store info
+            if (this.admin && this.admin.role === 'store_owner' && this.store) {
+                this.stores = [this.store];
+                console.log('Using store owner\'s store:', this.stores); // デバッグ用
+            }
         } finally {
-            this.hideLoading();
+            if (!calledFromCoupons) {
+                this.hideLoading();
+            }
         }
     }
 
@@ -769,30 +1098,46 @@ class AdminApp {
             <div class="store-card">
                 <div class="store-header">
                     <h3>${this.escapeHtml(store.name)}</h3>
-                    <span class="store-status ${store.is_active ? 'active' : 'inactive'}">
-                        ${store.is_active ? 'アクティブ' : '非アクティブ'}
-                    </span>
+                    <div class="store-meta">
+                        <span class="store-owner">${this.escapeHtml(store.owner_email)}</span>
+                        <span class="store-status ${store.is_active ? 'active' : 'inactive'}">
+                            ${store.is_active ? 'アクティブ' : '非アクティブ'}
+                        </span>
+                    </div>
                 </div>
+                
                 <div class="store-content">
-                    <p class="store-description">${this.escapeHtml(store.description || '')}</p>
+                    <p class="store-description">${this.escapeHtml(store.description || '説明なし')}</p>
                     <div class="store-details">
-                        <div class="detail-item">
-                            <strong>住所:</strong> ${this.escapeHtml(store.address || '未設定')}
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">住所</span>
+                                <span class="detail-value">${this.escapeHtml(store.address || '未設定')}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">作成日</span>
+                                <span class="detail-value">${this.formatDateTime(store.created_at)}</span>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <strong>オーナー:</strong> ${this.escapeHtml(store.owner_email)}
-                        </div>
-                        <div class="detail-item">
-                            <strong>位置:</strong> ${store.latitude.toFixed(6)}, ${store.longitude.toFixed(6)}
-                        </div>
-                        <div class="detail-item">
-                            <strong>作成日:</strong> ${this.formatDateTime(store.created_at)}
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">緯度</span>
+                                <span class="detail-value">${store.latitude.toFixed(6)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">経度</span>
+                                <span class="detail-value">${store.longitude.toFixed(6)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
                 <div class="store-actions">
-                    <button class="view-location-btn">🗺️ 地図で表示</button>
-                    <button class="edit-btn">✏️ 編集</button>
+                    <button class="action-btn secondary">🗺️ 地図で表示</button>
+                    <button class="action-btn secondary">✏️ 編集</button>
+                    <button onclick="adminApp.deleteStore('${store.id}', true)" class="action-btn danger">
+                        🗑️ 削除
+                    </button>
                 </div>
             </div>
         `).join('');
@@ -1149,6 +1494,111 @@ class AdminApp {
         this.discountSchedule[index][field] = parseInt(value);
     }
 
+    // Store actions
+    async deleteStore(storeId, hardDelete = false) {
+        try {
+            // Check if user has permission to delete this store
+            if (this.admin.role === 'store_owner') {
+                const linkedStoreId = this.admin.linked_store_id || this.store?.id;
+                if (linkedStoreId !== storeId) {
+                    this.showErrorNotification('この店舗を削除する権限がありません。自分の店舗のみ削除できます。');
+                    return;
+                }
+            }
+            
+            let store = null;
+            let relatedData = null;
+            
+            // Try to get store deletion info, but fallback if not available
+            try {
+                const infoResponse = await this.adminAuthFetch(`${this.API_BASE_URL}/admin/stores/info/${storeId}`);
+                if (infoResponse.ok) {
+                    const storeInfo = await infoResponse.json();
+                    store = storeInfo.store;
+                    relatedData = storeInfo.related_data;
+                } else if (infoResponse.status === 404) {
+                    this.showErrorNotification('店舗が見つからないか、削除する権限がありません。');
+                    return;
+                }
+            } catch (infoError) {
+                console.warn('Could not fetch store deletion info, proceeding with basic confirmation:', infoError);
+                // Fallback: find store from current stores list
+                if (this.stores && this.stores.length > 0) {
+                    store = this.stores.find(s => s.id === storeId);
+                }
+            }
+            
+            // Prepare confirmation message with available information
+            const storeName = store ? store.name : `店舗 ID: ${storeId}`;
+            let confirmMessage = `店舗「${storeName}」を削除しますか？`;
+            let warningMessage = '';
+            
+            if (hardDelete) {
+                confirmMessage = `店舗「${storeName}」を完全削除しますか？\n\nこの操作は取り消せません。`;
+                if (relatedData && relatedData.admin_count > 0) {
+                    warningMessage = `\n注意: ${relatedData.admin_count}個の管理者アカウントから店舗リンクが解除されます。`;
+                } else {
+                    warningMessage = `\n注意: 関連する管理者アカウントとクーポンにも影響があります。`;
+                }
+            } else {
+                if (relatedData && relatedData.coupon_count > 0) {
+                    warningMessage = `\n注意: 関連する${relatedData.coupon_count}件のクーポンも無効化されます。`;
+                } else {
+                    warningMessage = `\n注意: 関連するクーポンも無効化される可能性があります。`;
+                }
+            }
+            
+            const fullMessage = confirmMessage + warningMessage;
+            
+            const confirmed = await this.showConfirmModal({
+                title: hardDelete ? '完全削除の確認' : '削除の確認',
+                message: fullMessage,
+                cancelText: 'キャンセル',
+                okText: hardDelete ? '完全削除' : '削除',
+                danger: true
+            });
+            
+            if (!confirmed) return;
+            
+            // Perform deletion
+            this.showLoading();
+            const deleteResponse = await this.adminAuthFetch(
+                `${this.API_BASE_URL}/admin/stores/${storeId}${hardDelete ? '?hard_delete=true' : ''}`,
+                { method: 'DELETE' }
+            );
+            
+            if (!deleteResponse.ok) {
+                const errorData = await deleteResponse.json().catch(() => ({ detail: '不明なエラー' }));
+                if (deleteResponse.status === 404) {
+                    throw new Error('店舗が見つからないか、削除する権限がありません。');
+                } else if (deleteResponse.status === 403) {
+                    throw new Error('この操作を実行する権限がありません。');
+                } else {
+                    throw new Error(errorData.detail || '店舗の削除に失敗しました');
+                }
+            }
+            
+            const result = await deleteResponse.json().catch(() => ({ message: '店舗を削除しました' }));
+            
+            // Show success message
+            this.showSuccessNotification(result.message || '店舗を削除しました');
+            
+            // Refresh stores list
+            await this.loadStores();
+            
+            // If current admin deleted their own store, refresh admin info
+            if (this.admin.role === 'store_owner' && this.admin.linked_store_id === storeId) {
+                await this.refreshAdminInfo();
+            }
+            
+        } catch (error) {
+            console.error('Store deletion error:', error);
+            this.showErrorNotification(error.message || '店舗の削除中にエラーが発生しました');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
     // Coupon actions
     async duplicateCoupon(couponId) {
         const coupon = this.coupons.find(c => c.id === couponId);
@@ -1277,6 +1727,23 @@ class AdminApp {
                 this.showErrorNotification('位置情報の取得に失敗しました');
             }
         );
+    }
+
+    // Coupon status calculation
+    calculateCouponStatus(coupon) {
+        if (!coupon.end_time) {
+            return 'active'; // Default if no end time
+        }
+        
+        const now = new Date();
+        const endTime = new Date(coupon.end_time);
+        
+        if (now > endTime) {
+            // Check if exploded (additional logic could be added here)
+            return coupon.exploded ? 'exploded' : 'expired';
+        }
+        
+        return 'active';
     }
 
     // Utility methods
