@@ -337,7 +337,7 @@ function MainApp() {
           <p className="splash-subtitle">📍 あなたの街のクーポンを見つけよう!</p>
           <div className="splash-svg-area">
             <img
-              src="/icon/splash-removebg-preview.png"
+              src="/icon/splash_logo.png"
               alt="Coupon Icon"
               style={{
                 width: "380px",
