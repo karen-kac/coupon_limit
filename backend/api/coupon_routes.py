@@ -114,7 +114,7 @@ async def get_nearby_coupons(
     lat: float = Query(..., description="User latitude"),
     lng: float = Query(..., description="User longitude"),
     radius: int = Query(5000, description="Search radius in meters"),
-    include_external: bool = Query(True, description="Include external coupons"),
+    include_external: bool = Query(False, description="Include external coupons"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -405,6 +405,74 @@ async def test_external_coupons(
     
     except Exception as e:
         return {"error": str(e), "external_coupons": [], "count": 0}
+
+@router.get("/external-only")
+async def get_external_coupons_only(
+    lat: float = Query(..., description="User latitude"),
+    lng: float = Query(..., description="User longitude"),
+    radius: int = Query(5000, description="Search radius in meters"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get only external coupons (kumapon + hotpepper) - separate from regular polling"""
+    
+    # Get user's already obtained coupon IDs
+    user_obtained_coupon_ids = db.query(UserCoupon.coupon_id).filter(
+        UserCoupon.user_id == current_user.id
+    ).all()
+    obtained_ids = {coupon_id[0] for coupon_id in user_obtained_coupon_ids}
+    
+    external_coupons = []
+    
+    try:
+        # Get external coupons (kumapon + hotpepper)
+        external_service = ExternalCouponService()
+        ext_coupons = await external_service.get_external_coupons_near_location(lat, lng, radius)
+        
+        # If no real external coupons found, add some mock data for testing
+        if not ext_coupons:
+            ext_coupons = await get_mock_external_coupons(lat, lng, radius)
+        
+        for ext_coupon in ext_coupons:
+            # Skip if user has already obtained this external coupon
+            if ext_coupon['id'] in obtained_ids:
+                continue
+                
+            # Convert external coupon format to CouponResponse
+            try:
+                expires_at = datetime.fromisoformat(ext_coupon['expires_at'].replace('Z', '+00:00'))
+            except:
+                expires_at = ext_coupon['end_time']
+            
+            time_remaining = expires_at - datetime.now()
+            minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
+            
+            external_coupons.append(CouponResponse(
+                id=ext_coupon['id'],
+                shop_name=ext_coupon.get('shop_name', ext_coupon.get('store_name', '店舗名不明')),
+                title=ext_coupon['title'],
+                current_discount=ext_coupon['current_discount'],
+                location=Location(
+                    lat=ext_coupon['location']['lat'],
+                    lng=ext_coupon['location']['lng']
+                ),
+                expires_at=expires_at,
+                time_remaining_minutes=minutes_remaining,
+                distance_meters=round(ext_coupon['distance_meters'], 1),
+                description=ext_coupon.get('description', ''),
+                source="external",
+                store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                external_url=ext_coupon.get('external_url')
+            ))
+            
+    except Exception as e:
+        # Log error but don't fail the entire request
+        print(f"Failed to fetch external coupons: {e}")
+    
+    # Sort by distance
+    external_coupons.sort(key=lambda x: x.distance_meters or 0)
+    
+    return external_coupons
 
 @router.get("/hotpepper-test")
 async def test_hotpepper_coupons(
