@@ -308,10 +308,10 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       script.async = true;
       script.defer = true;
       
-      // タイムアウト処理を追加
+      // タイムアウト処理を追加（時間延長）
       const timeoutId = setTimeout(() => {
         console.warn('⚠️ Google Maps API loading timeout');
-      }, 5000);
+      }, 10000);
       
       script.onload = () => {
         clearTimeout(timeoutId);
@@ -391,11 +391,11 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         }
       }, 1000);
 
-      // 15秒後にクリーンアップ（初期化が完了しているか、諦める）
+      // 30秒後にクリーンアップ（初期化が完了しているか、諦める）- 時間を延長
       const timeout = setTimeout(() => {
-        console.log('⏰ Stopping periodic initialization check after 15 seconds');
+        console.log('⏰ Stopping periodic initialization check after 30 seconds');
         clearInterval(interval);
-      }, 15000);
+      }, 30000);
 
       return () => {
         clearInterval(interval);
@@ -419,8 +419,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       }
     };
 
-    // 短い遅延の後にチェック（レンダリング完了を待つ）
-    const timeouts = [10, 100, 500, 1000].map(delay => 
+    // 遅延時間を大幅に延長し、より多くの再試行を追加（レンダリングとAPI読み込み完了を待つ）
+    const timeouts = [50, 200, 500, 1000, 2000, 3000, 5000, 7000].map(delay => 
       setTimeout(immediateCheck, delay)
     );
 
