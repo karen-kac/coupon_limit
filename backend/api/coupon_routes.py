@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import math
 import sys
 import os
@@ -23,6 +23,9 @@ from external_coupons import ExternalCouponService, get_mock_external_coupons
 
 # Initialize logger
 logger = logging.getLogger(__name__)
+
+# Define JST timezone (UTC+9)
+JST = timezone(timedelta(hours=9))
 
 router = APIRouter()
 
@@ -73,7 +76,7 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
 
 def update_coupon_discounts(db: Session):
     """Update coupon discounts based on time remaining"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(JST)
     active_coupons = db.query(Coupon).filter(
         Coupon.active_status == "active",
         Coupon.end_time > now
@@ -84,7 +87,7 @@ def update_coupon_discounts(db: Session):
         coupon_end_time = coupon.end_time
         if coupon_end_time.tzinfo is not None:
             # If coupon time is timezone-aware, make now timezone-aware too
-            now_aware = now.replace(tzinfo=timezone.utc)
+            now_aware = now.replace(tzinfo=JST)
             time_remaining = coupon_end_time - now_aware
         else:
             # Both are naive
@@ -131,7 +134,7 @@ async def get_nearby_coupons(
         Store, Coupon.store_id == Store.id
     ).filter(
         Coupon.active_status == "active",
-        Coupon.end_time > datetime.now(timezone.utc),
+        Coupon.end_time > datetime.now(JST),
         Store.is_active == True,
         ~Coupon.id.in_(obtained_ids)  # Exclude already obtained coupons
     ).all()
@@ -143,7 +146,7 @@ async def get_nearby_coupons(
         distance = calculate_distance(lat, lng, store.latitude, store.longitude)
         
         if distance <= radius:
-            time_remaining = coupon.end_time - datetime.now(timezone.utc)
+            time_remaining = coupon.end_time - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             nearby_coupons.append(CouponResponse(
@@ -182,7 +185,7 @@ async def get_nearby_coupons(
                 except:
                     expires_at = ext_coupon['end_time']
                 
-                time_remaining = expires_at - datetime.now(timezone.utc)
+                time_remaining = expires_at - datetime.now(JST)
                 minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
                 
                 nearby_coupons.append(CouponResponse(
@@ -242,16 +245,16 @@ async def obtain_coupon(
         print(f"DEBUG: Coupon ID: {coupon.id}, Store: {store.name}")
         
         # Check if coupon is still active
-        now = datetime.now(timezone.utc)
+        now = datetime.now(JST)
         coupon_end_time = coupon.end_time
         
         # Handle timezone-aware vs naive datetime comparison
         if coupon_end_time.tzinfo is not None:
             # If coupon time is timezone-aware, make now timezone-aware too
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=JST)
         elif now.tzinfo is not None:
             # If now is timezone-aware but coupon is naive, make coupon timezone-aware
-            coupon_end_time = coupon_end_time.replace(tzinfo=timezone.utc)
+            coupon_end_time = coupon_end_time.replace(tzinfo=JST)
         
         if coupon.active_status != "active" or coupon_end_time <= now:
             raise HTTPException(status_code=400, detail="このクーポンは既に期限切れです")
@@ -324,7 +327,7 @@ async def get_coupon_stats(
     # Total active coupons
     total_active = db.query(Coupon).filter(
         Coupon.active_status == "active",
-        Coupon.end_time > datetime.now(timezone.utc)
+        Coupon.end_time > datetime.now(JST)
     ).count()
     
     # Coupons near user (within 1km)
@@ -332,7 +335,7 @@ async def get_coupon_stats(
         Store, Coupon.store_id == Store.id
     ).filter(
         Coupon.active_status == "active",
-        Coupon.end_time > datetime.now(timezone.utc),
+        Coupon.end_time > datetime.now(JST),
         Store.is_active == True
     ).all()
     
@@ -377,7 +380,7 @@ async def test_external_coupons(
             except:
                 expires_at = ext_coupon['end_time']
             
-            time_remaining = expires_at - datetime.now(timezone.utc)
+            time_remaining = expires_at - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             result.append({
@@ -423,7 +426,7 @@ async def test_hotpepper_coupons(
             except:
                 expires_at = ext_coupon['end_time']
             
-            time_remaining = expires_at - datetime.now(timezone.utc)
+            time_remaining = expires_at - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             result.append({
@@ -470,7 +473,7 @@ async def get_nearby_coupons_public(
         Store, Coupon.store_id == Store.id
     ).filter(
         Coupon.active_status == "active",
-        Coupon.end_time > datetime.now(timezone.utc),
+        Coupon.end_time > datetime.now(JST),
         Store.is_active == True
     ).all()
     
@@ -481,7 +484,7 @@ async def get_nearby_coupons_public(
         distance = calculate_distance(lat, lng, store.latitude, store.longitude)
         
         if distance <= radius:
-            time_remaining = coupon.end_time - datetime.now(timezone.utc)
+            time_remaining = coupon.end_time - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             nearby_coupons.append(CouponResponse(
@@ -516,7 +519,7 @@ async def get_nearby_coupons_public(
                 except:
                     expires_at = ext_coupon['end_time']
                 
-                time_remaining = expires_at - datetime.now(timezone.utc)
+                time_remaining = expires_at - datetime.now(JST)
                 minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
                 
                 nearby_coupons.append(CouponResponse(
@@ -570,7 +573,7 @@ async def get_nearby_internal_coupons(
         Store, Coupon.store_id == Store.id
     ).filter(
         Coupon.active_status == "active",
-        Coupon.end_time > datetime.now(timezone.utc),
+        Coupon.end_time > datetime.now(JST),
         Store.is_active == True,
         ~Coupon.id.in_(obtained_ids)  # Exclude already obtained coupons
     ).all()
@@ -582,7 +585,7 @@ async def get_nearby_internal_coupons(
         distance = calculate_distance(lat, lng, store.latitude, store.longitude)
         
         if distance <= radius:
-            time_remaining = coupon.end_time - datetime.now(timezone.utc)
+            time_remaining = coupon.end_time - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             nearby_coupons.append(CouponResponse(
@@ -642,7 +645,7 @@ async def get_nearby_external_coupons(
             except:
                 expires_at = ext_coupon['end_time']
             
-            time_remaining = expires_at - datetime.now(timezone.utc)
+            time_remaining = expires_at - datetime.now(JST)
             minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
             
             nearby_coupons.append(CouponResponse(

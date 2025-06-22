@@ -14,6 +14,9 @@ import json
 import re
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta, timezone
+
+# Define JST timezone (UTC+9)
+JST = timezone(timedelta(hours=9))
 import uuid
 from models import Coupon
 import logging
@@ -349,7 +352,7 @@ class ExternalCouponService:
                 logger.debug(f"Using fallback shop name: {shop_name}")
             
             # Set expiration time
-            expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+            expires_at = datetime.now(JST) + timedelta(hours=24)
             
             # Try multiple date fields
             date_fields = ['expires_at', 'end_date', 'expiry_date', 'valid_until']
@@ -382,7 +385,7 @@ class ExternalCouponService:
             # Get deal URL
             deal_url = deal.get('deal_url', deal.get('url', ''))
             if not deal_url:
-                issue_date = datetime.now(timezone.utc).strftime('%Y%m%d')
+                issue_date = datetime.now(JST).strftime('%Y%m%d')
                 deal_url = f"https://kumapon.jp/deals/{issue_date}kpd{deal['id']}"
             
             # Extract description
@@ -400,7 +403,7 @@ class ExternalCouponService:
                     'lat': lat,
                     'lng': lng
                 },
-                'start_time': datetime.now(timezone.utc),
+                'start_time': datetime.now(JST),
                 'end_time': expires_at,
                 'expires_at': expires_at.isoformat(),
                 'active_status': 'active',
@@ -671,9 +674,9 @@ class ExternalCouponService:
                 'current_discount': discount,
                 'discount_rate_initial': discount,
                 'location': {'lat': coupon_lat, 'lng': coupon_lng},
-                'start_time': datetime.now(timezone.utc),
-                'end_time': datetime.now(timezone.utc) + timedelta(days=30),
-                'expires_at': (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+                'start_time': datetime.now(JST),
+                'end_time': datetime.now(JST) + timedelta(days=30),
+                'expires_at': (datetime.now(JST) + timedelta(days=30)).isoformat(),
                 'active_status': 'active',
                 'source': 'hotpepper',
                 'external_id': f'hp_mock_{i+1}',
@@ -790,7 +793,7 @@ class ExternalCouponService:
                 description = f"{description} - クーポン利用で{discount_rate}%OFF！"
             
             # Set expiration (Hot Pepper coupons typically valid for 30 days)
-            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            expires_at = datetime.now(JST) + timedelta(days=30)
             
             # Extract address
             address = shop.get('address', '')
@@ -812,7 +815,7 @@ class ExternalCouponService:
                     'lat': lat,
                     'lng': lng
                 },
-                'start_time': datetime.now(timezone.utc),
+                'start_time': datetime.now(JST),
                 'end_time': expires_at,
                 'expires_at': expires_at.isoformat(),
                 'active_status': 'active',
@@ -1054,7 +1057,7 @@ class ExternalCouponService:
             distance = random.randint(100, 500)  # Virtual distance for online purchases
             
             # Set expiration (Rakuten coupons typically valid for 7-30 days)
-            expires_at = datetime.now(timezone.utc) + timedelta(days=random.randint(7, 30))
+            expires_at = datetime.now(JST) + timedelta(days=random.randint(7, 30))
             
             # Create title and description
             title = f"{shop_name} - {item_name[:30]}..."
@@ -1078,7 +1081,7 @@ class ExternalCouponService:
                     'lat': user_lat + random.uniform(-0.01, 0.01),  # Slight variation around user
                     'lng': user_lng + random.uniform(-0.01, 0.01)
                 },
-                'start_time': datetime.now(timezone.utc),
+                'start_time': datetime.now(JST),
                 'end_time': expires_at,
                 'expires_at': expires_at.isoformat(),
                 'active_status': 'active',
@@ -1142,7 +1145,7 @@ class ExternalCouponService:
                 sale_price = int(original_price * (1 - discount_rate / 100))
             
             # Set expiration (hotel deals typically valid for 30-60 days)
-            expires_at = datetime.now(timezone.utc) + timedelta(days=random.randint(30, 60))
+            expires_at = datetime.now(JST) + timedelta(days=random.randint(30, 60))
             
             # Create title and description
             title = f"{hotel_name} - 宿泊クーポン"
@@ -1162,7 +1165,7 @@ class ExternalCouponService:
                 'current_discount': discount_rate,
                 'discount_rate_initial': discount_rate,
                 'location': {'lat': lat, 'lng': lng},
-                'start_time': datetime.now(timezone.utc),
+                'start_time': datetime.now(JST),
                 'end_time': expires_at,
                 'expires_at': expires_at.isoformat(),
                 'active_status': 'active',
@@ -1332,9 +1335,9 @@ class ExternalCouponService:
                 'current_discount': discount,
                 'discount_rate_initial': discount,
                 'location': {'lat': coupon_lat, 'lng': coupon_lng},
-                'start_time': datetime.now(timezone.utc),
-                'end_time': datetime.now(timezone.utc) + timedelta(days=random.randint(7, 60)),
-                'expires_at': (datetime.now(timezone.utc) + timedelta(days=random.randint(7, 60))).isoformat(),
+                'start_time': datetime.now(JST),
+                'end_time': datetime.now(JST) + timedelta(days=random.randint(7, 60)),
+                'expires_at': (datetime.now(JST) + timedelta(days=random.randint(7, 60))).isoformat(),
                 'active_status': 'active',
                 'source': source,
                 'external_id': f'rakuten_mock_{i+1}',
@@ -1366,13 +1369,13 @@ async def get_mock_external_coupons(lat: float, lng: float, radius: int) -> List
             "title": "テスト用クーポン 40% OFF",
             "current_discount": 40,
             "location": {"lat": 35.6812, "lng": 139.7671},
-            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(),
+            "expires_at": (datetime.now(JST) + timedelta(hours=2)).isoformat(),
             "time_remaining_minutes": 120,
             "distance_meters": 100,
             "description": "これは動作確認用のテストクーポンです",
             "source": "external",
             "store_name": "東京駅周辺店舗",
-            "end_time": datetime.now(timezone.utc) + timedelta(hours=2),
+            "end_time": datetime.now(JST) + timedelta(hours=2),
             "external_url": "https://example.com/test1"
         },
         {
@@ -1381,13 +1384,13 @@ async def get_mock_external_coupons(lat: float, lng: float, radius: int) -> List
             "title": "テスト用クーポン 30% OFF",
             "current_discount": 30,
             "location": {"lat": 35.6598, "lng": 139.7006},
-            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=3)).isoformat(),
+            "expires_at": (datetime.now(JST) + timedelta(hours=3)).isoformat(),
             "time_remaining_minutes": 180,
             "distance_meters": 200,
             "description": "渋谷エリアのテストクーポンです",
             "source": "external",
             "store_name": "渋谷テスト店",
-            "end_time": datetime.now(timezone.utc) + timedelta(hours=3),
+            "end_time": datetime.now(JST) + timedelta(hours=3),
             "external_url": "https://example.com/test2"
         },
         {
@@ -1396,13 +1399,13 @@ async def get_mock_external_coupons(lat: float, lng: float, radius: int) -> List
             "title": "テスト用クーポン 25% OFF",
             "current_discount": 25,
             "location": {"lat": 35.6896, "lng": 139.6917},
-            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
+            "expires_at": (datetime.now(JST) + timedelta(hours=4)).isoformat(),
             "time_remaining_minutes": 240,
             "distance_meters": 300,
             "description": "新宿エリアのテストクーポンです",
             "source": "external",
             "store_name": "新宿サンプル店",
-            "end_time": datetime.now(timezone.utc) + timedelta(hours=4),
+            "end_time": datetime.now(JST) + timedelta(hours=4),
             "external_url": "https://example.com/test3"
         }
     ]
