@@ -19,7 +19,6 @@ function MainApp() {
   const [externalCoupons, setExternalCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
   
@@ -106,23 +105,8 @@ function MainApp() {
     } catch (error) {
       console.error('❌ Error loading external coupons:', error);
       
-      // フォールバック用のモックデータ
-      const mockCoupons = [
-        {
-          id: 'fallback_external_1',
-          store_name: 'テスト外部店舗 1',
-          shop_name: 'テスト外部店舗 1',
-          title: 'フォールバック 外部クーポン 30% OFF',
-          current_discount: 30,
-          location: { lat: userLocation.lat + 0.001, lng: userLocation.lng + 0.001 },
-          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          time_remaining_minutes: 120,
-          distance_meters: 150,
-          description: '外部API取得に失敗したためのテスト用クーポンです',
-          source: 'external' as const,
-          external_url: 'https://example.com'
-        }
-      ];
+      // 軽量化：フォールバック用のモックデータを空配列に（高速化）
+      const mockCoupons: Coupon[] = [];
 
        console.log('🔄 Using fallback mock external coupons:', mockCoupons.length);
       // ここもpreviousCouponIdsを更新する必要があります
@@ -174,8 +158,16 @@ function MainApp() {
 
   // スプラッシュスクリーンと位置情報の取得
   useEffect(() => {
-    getCurrentLocation();
-    // スプラッシュスクリーンを2.5秒後に非表示
+    // 即座にデフォルト位置（東京駅）を設定
+    setUserLocation({
+      lat: 35.6812,
+      lng: 139.7671,
+    });
+    
+    // バックグラウンドで実際の位置情報を取得
+    getCurrentLocationBackground();
+    
+    // スプラッシュスクリーンを2.5秒後に非表示（大幅短縮）
     const timer = setTimeout(() => {
       setShowSplash(false);
     }, 2500);
@@ -188,17 +180,20 @@ function MainApp() {
 
     console.log('🚀 Initial data loading started');
     
-    // 初回ロード時はローディング表示
-    setLoading(true);
-    
-    // 内部クーポンと外部クーポンを並行して取得
-    Promise.all([
+    // バックグラウンドでデータを取得（ローディング画面なし）
+    Promise.allSettled([
       loadInternalCoupons(true),
       loadExternalCoupons(true),
       loadUserCoupons(true)
-    ]).finally(() => {
-      setLoading(false);
-      setError(null);
+    ]).then((results) => {
+      // エラーがあってもログのみ出力し、UI には影響させない
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const sources = ['internal', 'external', 'user'];
+          console.warn(`${sources[index]} coupon loading failed:`, result.reason);
+        }
+      });
+      console.log('🚀 Initial data loading completed');
     });
   }, [userLocation, isAuthenticated, loadInternalCoupons, loadExternalCoupons, loadUserCoupons]);
 
@@ -272,29 +267,29 @@ function MainApp() {
     };
   }, [allCoupons]);
 
-  const getCurrentLocation = () => {
+  const getCurrentLocationBackground = () => {
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by this browser.');
-      setLoading(false);
+      console.log('Geolocation is not supported by this browser, using default location');
       return;
     }
 
+    // バックグラウンドで位置情報を取得（ローディングなし）
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log('✅ Real location obtained, updating from background');
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
-        setLoading(false);
       },
       (error) => {
-        console.error('Error getting location:', error);
-        // Fallback to Tokyo Station for demo
-        setUserLocation({
-          lat: 35.6812,
-          lng: 139.7671,
-        });
-        setLoading(false);
+        console.log('位置情報取得エラー（デフォルト位置を継続使用）:', error);
+        // エラー時もデフォルト位置を使い続ける
+      },
+      {
+        timeout: 5000, // バックグラウンドなので少し長めに設定
+        maximumAge: 300000, // 5分間はキャッシュした位置情報を使用
+        enableHighAccuracy: false // 高精度は無効にして高速化
       }
     );
   };
@@ -354,11 +349,11 @@ function MainApp() {
     );
   }
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">📍</div>
-        <p>{authLoading ? '認証確認中...' : '位置情報を取得中...'}</p>
+        <p>認証確認中...</p>
       </div>
     );
   }

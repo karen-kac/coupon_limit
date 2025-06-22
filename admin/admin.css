@@ -1030,7 +1030,7 @@ body {
 
 .loading-spinner {
     font-size: 48px;
-    animation: spin 2s linear infinite;
+    animation: spin 1s linear infinite;
     margin-bottom: 16px;
     color: #e6543a;
 }
