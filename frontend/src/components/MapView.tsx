@@ -24,10 +24,12 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const explosionOverlaysRef = useRef<Map<string, any>>(new Map()); // クーポンIDと爆発オーバーレイのマップ
   const userMarkerRef = useRef<any>(null);
   const isMapInitializedRef = useRef(false);
   const [showExplosion, setShowExplosion] = useState(false);
   const [useLottie, setUseLottie] = useState(true);
+  const [useWebM, setUseWebM] = useState(false);
 
   // デバッグログを追加
   React.useEffect(() => {
@@ -49,13 +51,25 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       return;
     }
 
-    // Clear existing markers
+    // Clear existing markers (but keep explosion overlays)
     markersRef.current.forEach(marker => {
       if (marker && marker.setMap) {
         marker.setMap(null);
       }
     });
     markersRef.current = [];
+
+    // Clean up completed explosions (remove overlays for coupons no longer in expiringCoupons)
+    const currentExplosions = explosionOverlaysRef.current;
+    Array.from(currentExplosions.entries()).forEach(([couponId, overlay]) => {
+      if (!expiringCoupons.has(couponId)) {
+        console.log(`🧹 Cleaning up completed explosion for coupon ${couponId}`);
+        if (overlay && overlay.setMap) {
+          overlay.setMap(null);
+        }
+        currentExplosions.delete(couponId);
+      }
+    });
 
     // Add coupon markers and explosion effects
     coupons.forEach((coupon, index) => {
@@ -134,12 +148,19 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       if (isExpiring) {
         console.log(`🎆 Creating explosion effect for coupon ${coupon.id}`);
         
-        // Create explosion effect instead of marker
+        // Check if explosion overlay already exists for this coupon
+        if (explosionOverlaysRef.current.has(coupon.id)) {
+          console.log(`⚡ Explosion already exists for coupon ${coupon.id}, skipping creation`);
+          return;
+        }
+        
+        // Skip creating any marker for expiring coupons - only create explosion effect
         const explosionOverlay = new window.google.maps.OverlayView();
         explosionOverlay.onAdd = function() {
           const div = document.createElement('div');
           div.style.position = 'absolute';
           div.style.transform = 'translate(-50%, -50%)';
+          div.style.pointerEvents = 'none'; // マウスイベントを通さない
           
           // Mount React component
           const explosionRoot = document.createElement('div');
@@ -150,10 +171,16 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
           const ExplosionComponent = React.createElement(ExplosionEffect, {
             onComplete: () => {
               console.log(`🎆 Explosion completed for coupon ${coupon.id}`);
-              onExplosionComplete(coupon.id);
+              // 爆発完了時に即座にオーバーレイを削除
               explosionOverlay.setMap(null);
+              // 爆発オーバーレイを管理マップから削除
+              explosionOverlaysRef.current.delete(coupon.id);
+              // その後、親コンポーネントに完了を通知
+              onExplosionComplete(coupon.id);
             },
-            useLottie: true
+            useLottie: false,
+            useWebM: true,
+            isDebug: false
           });
           root.render(ExplosionComponent);
           
@@ -177,7 +204,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         };
         
         explosionOverlay.setMap(mapInstanceRef.current);
-        markersRef.current.push(explosionOverlay);
+        // 爆発オーバーレイを専用のマップで管理
+        explosionOverlaysRef.current.set(coupon.id, explosionOverlay);
       } else {
         // Create normal marker
         try {
@@ -497,7 +525,18 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       {/* デバッグ用爆発ボタン */}
       <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 999 }}>
         <button
-          onClick={() => setUseLottie(!useLottie)}
+          onClick={() => {
+            if (useWebM) {
+              setUseWebM(false);
+              setUseLottie(true);
+            } else if (useLottie) {
+              setUseLottie(false);
+              setUseWebM(false);
+            } else {
+              setUseWebM(true);
+              setUseLottie(false);
+            }
+          }}
           style={{
             backgroundColor: '#4CAF50',
             color: 'white',
@@ -512,7 +551,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }}
         >
-          {useLottie ? '🎬 Lottie' : '💫 パーティクル'}
+          {useWebM ? '🎥 WebM' : useLottie ? '🎬 Lottie' : '💫 パーティクル'}
         </button>
         <button
           onClick={() => setShowExplosion(true)}
@@ -537,6 +576,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         <ExplosionEffect 
           onComplete={() => setShowExplosion(false)} 
           useLottie={useLottie}
+          useWebM={useWebM}
+          isDebug={true}
         />
       )}
     </div>
