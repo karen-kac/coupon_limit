@@ -29,15 +29,8 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div style={{
-      maxWidth: 360,
-      margin: "48px auto",
-      padding: 32,
-      borderRadius: 24,
-      background: "#FFF9EC",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-      fontFamily: "'Rounded Mplus 1c', 'Arial Rounded MT Bold', 'Arial', sans-serif"
-    }}>
+    <div className="auth-page-wrapper">
+      <div className="auth-form-container">
       <h2 style={{
         textAlign: "center",
         color: "#e6543a",
@@ -104,8 +97,9 @@ const Register: React.FC = () => {
         onMouseOut={e => !loading && (e.currentTarget.style.background = "linear-gradient(90deg, #e6543a 0%, #ffb6b6 100%)")}
         >{loading ? "登録中..." : "登録"}</button>
       </form>
-      <div style={{ marginTop: 24, textAlign: "center", fontSize: 15 }}>
-        すでにアカウントをお持ちの方は <a href="/login" style={{ color: "#e6543a", fontWeight: 700, textDecoration: "underline dotted" }}>ログイン</a>
+        <div style={{ marginTop: 24, textAlign: "center", fontSize: 15 }}>
+          すでにアカウントをお持ちの方は <a href="/login" style={{ color: "#e6543a", fontWeight: 700, textDecoration: "underline dotted" }}>ログイン</a>
+        </div>
       </div>
     </div>
   );

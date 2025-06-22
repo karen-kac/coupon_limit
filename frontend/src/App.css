@@ -1173,3 +1173,88 @@ body {
     padding: 24px;
   }
 }
+
+/* Login and Register Pages - Enhanced Desktop Design */
+.auth-page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: linear-gradient(135deg, #FFF9EC 0%, #FFF5E1 100%);
+  padding: 20px;
+}
+
+.auth-page-wrapper::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #FFF9EC 0%, #FFF5E1 100%);
+  z-index: -2;
+}
+
+.auth-page-wrapper::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(230, 84, 58, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (min-width: 768px) {
+  .auth-page-wrapper {
+    background: transparent;
+  }
+  
+  .auth-page-wrapper::before {
+    background: linear-gradient(135deg, #FFF9EC 0%, #FFF5E1 50%, #FFEDC4 100%);
+  }
+  
+  .auth-page-wrapper::after {
+    background: radial-gradient(ellipse at 30% 20%, rgba(230, 84, 58, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(255, 68, 68, 0.06) 0%, transparent 60%);
+  }
+}
+
+.auth-form-container {
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(230, 84, 58, 0.15);
+  border: 1px solid rgba(230, 84, 58, 0.1);
+  font-family: 'Rounded Mplus 1c', 'Arial Rounded MT Bold', 'Arial', sans-serif;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .auth-form-container {
+    max-width: 420px;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  .auth-form-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(230, 84, 58, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-form-container {
+    max-width: 480px;
+    padding: 48px;
+  }
+}
