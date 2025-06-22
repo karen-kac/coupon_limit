@@ -286,11 +286,9 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
       // Add user marker
       updateUserMarker();
       
-      // Trigger marker update after map is ready
-      setTimeout(() => {
-        console.log('🔄 Triggering marker update after map initialization');
-        updateMarkers();
-      }, 100);
+      // 高速化：即座にマーカーを更新
+      console.log('🔄 Triggering marker update after map initialization');
+      updateMarkers();
       
     } catch (error) {
       console.error('❌ Failed to initialize Google Map:', error);
@@ -305,20 +303,53 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     if (!window.google && !document.querySelector('script[src*="maps.googleapis.com"]')) {
       console.log('🔄 Loading Google Maps API...');
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async&callback=initMap`;
+      // 高速化：librariesを最小限に、v=weeklyで最新版を使用
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async&callback=initMap&v=weekly`;
       script.async = true;
       script.defer = true;
+      
+      // タイムアウト処理を追加
+      const timeoutId = setTimeout(() => {
+        console.warn('⚠️ Google Maps API loading timeout');
+      }, 5000);
+      
+      script.onload = () => {
+        clearTimeout(timeoutId);
+        console.log('✅ Google Maps API loaded successfully');
+      };
+      
       script.onerror = () => {
+        clearTimeout(timeoutId);
         console.error('❌ Google Maps API failed to load. Please check your API key.');
       };
+      
       document.head.appendChild(script);
       
       window.initMap = () => {
+        clearTimeout(timeoutId);
         console.log('✅ Google Maps callback triggered');
-        if (userLocation && mapRef.current) {
-          initializeMap();
-        }
+        // 即座に初期化を試行（userLocationとmapRefの状態に関係なく）
+        const checkAndInit = () => {
+          console.log('🔄 Checking map initialization conditions after API load');
+          console.log('- userLocation:', !!userLocation, userLocation);
+          console.log('- mapRef.current:', !!mapRef.current);
+          console.log('- isMapInitialized:', isMapInitializedRef.current);
+          
+          if (userLocation && mapRef.current) {
+            console.log('✅ All conditions met, initializing map from callback');
+            initializeMap();
+          } else {
+            console.log('⏳ Conditions not met, retrying in 100ms');
+            setTimeout(checkAndInit, 100);
+          }
+        };
+        
+        setTimeout(checkAndInit, 50);
       };
+    } else if (window.google && userLocation && mapRef.current) {
+      // Google Maps APIが既に読み込まれている場合は即座に初期化
+      console.log('🔄 Google Maps API already loaded, initializing immediately');
+      initializeMap();
     }
   }, []); // 依存配列を空にして初回のみ実行
 
@@ -327,8 +358,76 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     if (window.google && userLocation && mapRef.current) {
       console.log('✅ Google Maps ready, initializing/updating map');
       initializeMap();
+    } else {
+      console.log('⏳ Map initialization conditions not met:', {
+        googleMaps: !!window.google,
+        userLocation: !!userLocation,
+        mapRef: !!mapRef.current
+      });
     }
   }, [userLocation, initializeMap]);
+
+  // 追加：mapRefが利用可能になった時の追加チェック
+  useEffect(() => {
+    if (mapRef.current && window.google && userLocation && !isMapInitializedRef.current) {
+      console.log('🔄 MapRef ready, checking if map needs initialization');
+      setTimeout(() => {
+        if (mapRef.current && window.google && userLocation && !isMapInitializedRef.current) {
+          console.log('✅ Force initializing map due to mapRef availability');
+          initializeMap();
+        }
+      }, 200);
+    }
+  }, [userLocation, initializeMap]);
+
+  // 最終的なフォールバック：定期的に初期化状況をチェック
+  useEffect(() => {
+    if (!isMapInitializedRef.current) {
+      console.log('🔄 Setting up periodic initialization check');
+      const interval = setInterval(() => {
+        if (window.google && userLocation && mapRef.current && !isMapInitializedRef.current) {
+          console.log('🔄 Periodic check: attempting map initialization');
+          initializeMap();
+        }
+      }, 1000);
+
+      // 15秒後にクリーンアップ（初期化が完了しているか、諦める）
+      const timeout = setTimeout(() => {
+        console.log('⏰ Stopping periodic initialization check after 15 seconds');
+        clearInterval(interval);
+      }, 15000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [userLocation, initializeMap]);
+
+  // コンポーネントマウント後の即座チェック
+  useEffect(() => {
+    const immediateCheck = () => {
+      console.log('🔄 Immediate post-mount check for map initialization');
+      console.log('- window.google:', !!window.google);
+      console.log('- userLocation:', !!userLocation);
+      console.log('- mapRef.current:', !!mapRef.current);
+      console.log('- isMapInitialized:', isMapInitializedRef.current);
+      
+      if (window.google && userLocation && mapRef.current && !isMapInitializedRef.current) {
+        console.log('✅ All conditions met on immediate check, initializing map');
+        initializeMap();
+      }
+    };
+
+    // 短い遅延の後にチェック（レンダリング完了を待つ）
+    const timeouts = [10, 100, 500, 1000].map(delay => 
+      setTimeout(immediateCheck, delay)
+    );
+
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);  // 空の依存配列でマウント時のみ実行
 
   // クーポンデータの更新時のみマーカーを更新
   useEffect(() => {
@@ -338,10 +437,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     
     if (mapInstanceRef.current && window.google) {
       console.log('✅ Calling updateMarkers...');
-      // Small delay to ensure map is fully ready
-      setTimeout(() => {
-        updateMarkers();
-      }, 50);
+      // 高速化：遅延なしで即座に更新
+      updateMarkers();
     } else {
       console.log('⏳ updateMarkers not called - waiting for map instance');
       console.log('- Map instance:', !!mapInstanceRef.current);
@@ -357,29 +454,45 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     );
   }
 
+  // 位置情報がない場合は簡潔に表示（すぐにデフォルト位置が設定される）
   if (!userLocation) {
     return (
       <div className="map-loading">
         <div className="loading-spinner">📍</div>
-        <p>位置情報を取得中...</p>
+        <p>マップを準備中...</p>
       </div>
     );
   }
 
-  // Google Maps APIが読み込まれていない場合のローディング表示
+  // Google Maps APIが読み込まれていない場合は簡潔な表示
   if (!window.google) {
     return (
       <div className="map-loading">
         <div className="loading-spinner">🗺️</div>
-        <p>マップを読み込み中...</p>
-        <small>少々お待ちください</small>
+        <p>マップを準備中...</p>
       </div>
     );
   }
 
   return (
     <div className="map-view" style={{ position: 'relative' }}>
-      <div ref={mapRef} className="map-container" style={{ width: '100%', height: '100%' }} />
+      <div 
+        ref={(ref) => {
+          mapRef.current = ref;
+          // mapRefが設定された瞬間に初期化をチェック
+          if (ref && window.google && userLocation && !isMapInitializedRef.current) {
+            console.log('🔄 MapRef just set, checking initialization immediately');
+            setTimeout(() => {
+              if (window.google && userLocation && !isMapInitializedRef.current) {
+                console.log('✅ Initializing map from ref callback');
+                initializeMap();
+              }
+            }, 10);
+          }
+        }}
+        className="map-container" 
+        style={{ width: '100%', height: '100%' }} 
+      />
       
       {/* デバッグ用爆発ボタン */}
       <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 999 }}>
