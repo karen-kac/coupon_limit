@@ -28,8 +28,6 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
   const userMarkerRef = useRef<any>(null);
   const isMapInitializedRef = useRef(false);
   const [showExplosion, setShowExplosion] = useState(false);
-  const [useLottie, setUseLottie] = useState(true);
-  const [useWebM, setUseWebM] = useState(false);
 
   // デバッグログを追加
   React.useEffect(() => {
@@ -455,7 +453,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, []);  // 空の依存配列でマウント時のみ実行
+  }, [initializeMap, userLocation]);  // initializeMapとuserLocationを依存配列に追加
 
   // クーポンデータの更新時のみマーカーを更新
   useEffect(() => {
@@ -522,61 +520,13 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         style={{ width: '100%', height: '100%' }} 
       />
       
-      {/* デバッグ用爆発ボタン */}
-      <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 999 }}>
-        <button
-          onClick={() => {
-            if (useWebM) {
-              setUseWebM(false);
-              setUseLottie(true);
-            } else if (useLottie) {
-              setUseLottie(false);
-              setUseWebM(false);
-            } else {
-              setUseWebM(true);
-              setUseLottie(false);
-            }
-          }}
-          style={{
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px 12px',
-            fontSize: '14px',
-            cursor: 'pointer',
-            marginBottom: '8px',
-            display: 'block',
-            width: '100%',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-        >
-          {useWebM ? '🎥 WebM' : useLottie ? '🎬 Lottie' : '💫 パーティクル'}
-        </button>
-        <button
-          onClick={() => setShowExplosion(true)}
-          style={{
-            backgroundColor: '#ff4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '10px 15px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            width: '100%',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-        >
-          💥 爆発テスト
-        </button>
-      </div>
 
       {/* 爆発エフェクト */}
       {showExplosion && (
         <ExplosionEffect 
           onComplete={() => setShowExplosion(false)} 
-          useLottie={useLottie}
-          useWebM={useWebM}
+          useLottie={false}
+          useWebM={true}
           isDebug={true}
         />
       )}

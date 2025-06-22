@@ -322,6 +322,10 @@ function MainApp() {
       next.delete(couponId);
       return next;
     });
+    
+    // 実際のクーポンデータからも削除
+    setInternalCoupons(prev => prev.filter(c => c.id !== couponId));
+    setExternalCoupons(prev => prev.filter(c => c.id !== couponId));
   }, []);
 
 
