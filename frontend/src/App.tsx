@@ -22,13 +22,15 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
-
+  
+  // 期限切れ検出と爆発エフェクト用の状態
+  const [expiringCoupons, setExpiringCoupons] = useState<Set<string>>(new Set());
+  const [previousCouponIds, setPreviousCouponIds] = useState<Set<string>>(new Set());
   
   // 内部クーポンは30秒、外部クーポンは1時間、ユーザークーポンは30秒
   const INTERNAL_COUPON_POLLING_INTERVAL = 30000; // 30秒
   const EXTERNAL_COUPON_POLLING_INTERVAL = 3600000; // 1時間 (60 * 60 * 1000)
   const USER_COUPON_POLLING_INTERVAL = 30000; // 30秒
-
 
   // データ比較用のヘルパー関数
   const isDataEqual = useCallback((newData: any[], currentData: any[]) => {
@@ -268,7 +270,7 @@ function MainApp() {
     return () => {
       timers.forEach(timer => timer && clearTimeout(timer));
     };
-  }, [coupons]);
+  }, [allCoupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
