@@ -245,3 +245,87 @@ export const verifyToken = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// 内部クーポンのみを取得
+export const getInternalCoupons = async (lat: number, lng: number, radius: number = 5000): Promise<Coupon[]> => {
+  console.log(`Fetching internal coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
+  
+  try {
+    const token = getAuthToken();
+    const config: any = {};
+    
+    if (token) {
+      config.headers = { 'Authorization': `Bearer ${token}` };
+    }
+    
+    const response = await axios.get(
+      `${API_BASE_URL}/coupons/internal?lat=${lat}&lng=${lng}&radius=${radius}`,
+      config
+    );
+    
+    const data = response.data;
+    
+    const coupons: Coupon[] = data.map((coupon: any) => ({
+      id: coupon.id,
+      store_name: coupon.store_name,
+      shop_name: coupon.store_name,
+      title: coupon.title,
+      current_discount: coupon.current_discount,
+      location: coupon.location,
+      expires_at: coupon.expires_at,
+      time_remaining_minutes: coupon.time_remaining_minutes,
+      distance_meters: coupon.distance_meters,
+      description: coupon.description,
+      source: 'internal',
+      external_url: coupon.external_url
+    }));
+    
+    console.log(`Successfully fetched ${coupons.length} internal coupons`);
+    return coupons;
+  } catch (error) {
+    console.error('Error fetching internal coupons:', error);
+    return [];
+  }
+};
+
+// 外部クーポンのみを取得
+export const getExternalCoupons = async (lat: number, lng: number, radius: number = 5000): Promise<Coupon[]> => {
+  console.log(`Fetching external coupons for lat: ${lat}, lng: ${lng}, radius: ${radius}`);
+  
+  try {
+    const token = getAuthToken();
+    const config: any = {};
+    
+    if (token) {
+      config.headers = { 'Authorization': `Bearer ${token}` };
+    }
+    
+    const response = await axios.get(
+      `${API_BASE_URL}/coupons/external?lat=${lat}&lng=${lng}&radius=${radius}`,
+      config
+    );
+    
+    const data = response.data;
+    
+    const coupons: Coupon[] = data.map((coupon: any) => ({
+      id: coupon.id,
+      store_name: coupon.store_name,
+      shop_name: coupon.shop_name,
+      title: coupon.title,
+      current_discount: coupon.current_discount,
+      location: coupon.location,
+      expires_at: coupon.expires_at,
+      time_remaining_minutes: coupon.time_remaining_minutes,
+      distance_meters: coupon.distance_meters,
+      description: coupon.description,
+      source: coupon.source || 'external',
+      external_url: coupon.external_url
+    }));
+    
+    console.log(`Successfully fetched ${coupons.length} external coupons`);
+    return coupons;
+  } catch (error) {
+    console.error('Error fetching external coupons:', error);
+    return [];
+  }
+};

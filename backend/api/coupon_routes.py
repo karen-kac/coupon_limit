@@ -547,3 +547,129 @@ async def get_nearby_coupons_public(
     nearby_coupons.sort(key=lambda x: x.distance_meters or 0)
     
     return nearby_coupons
+
+@router.get("/internal", response_model=List[CouponResponse])
+async def get_nearby_internal_coupons(
+    lat: float = Query(..., description="User latitude"),
+    lng: float = Query(..., description="User longitude"),
+    radius: int = Query(5000, description="Search radius in meters"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get internal coupons near the user's location only"""
+    
+    # Update discount rates
+    update_coupon_discounts(db)
+    
+    # Get user's already obtained coupon IDs
+    user_obtained_coupon_ids = db.query(UserCoupon.coupon_id).filter(
+        UserCoupon.user_id == current_user.id
+    ).all()
+    obtained_ids = {coupon_id[0] for coupon_id in user_obtained_coupon_ids}
+    
+    # Get active coupons with their stores (internal only), excluding obtained ones
+    active_coupons = db.query(Coupon, Store).join(
+        Store, Coupon.store_id == Store.id
+    ).filter(
+        Coupon.active_status == "active",
+        Coupon.end_time > datetime.now(),
+        Store.is_active == True,
+        ~Coupon.id.in_(obtained_ids)  # Exclude already obtained coupons
+    ).all()
+    
+    nearby_coupons = []
+    
+    # Process internal coupons
+    for coupon, store in active_coupons:
+        distance = calculate_distance(lat, lng, store.latitude, store.longitude)
+        
+        if distance <= radius:
+            time_remaining = coupon.end_time - datetime.now()
+            minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
+            
+            nearby_coupons.append(CouponResponse(
+                id=coupon.id,
+                shop_name=store.name,
+                title=coupon.title,
+                current_discount=coupon.current_discount,
+                location=Location(lat=store.latitude, lng=store.longitude),
+                expires_at=coupon.end_time,
+                time_remaining_minutes=minutes_remaining,
+                distance_meters=round(distance, 1),
+                description=coupon.description,
+                source="internal",
+                store_name=store.name
+            ))
+    
+    # Sort by distance
+    nearby_coupons.sort(key=lambda x: x.distance_meters or 0)
+    
+    return nearby_coupons
+
+@router.get("/external", response_model=List[CouponResponse])
+async def get_nearby_external_coupons(
+    lat: float = Query(..., description="User latitude"),
+    lng: float = Query(..., description="User longitude"),  
+    radius: int = Query(5000, description="Search radius in meters"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get external coupons near the user's location only"""
+    
+    # Get user's already obtained coupon IDs
+    user_obtained_coupon_ids = db.query(UserCoupon.coupon_id).filter(
+        UserCoupon.user_id == current_user.id
+    ).all()
+    obtained_ids = {coupon_id[0] for coupon_id in user_obtained_coupon_ids}
+    
+    nearby_coupons = []
+    
+    # Get external coupons
+    try:
+        external_service = ExternalCouponService()
+        external_coupons = await external_service.get_external_coupons_near_location(lat, lng, radius)
+        
+        # If no real external coupons found, add some mock data for testing
+        if not external_coupons:
+            external_coupons = await get_mock_external_coupons(lat, lng, radius)
+        
+        for ext_coupon in external_coupons:
+            # Skip if user has already obtained this external coupon
+            if ext_coupon['id'] in obtained_ids:
+                continue
+                
+            # Convert external coupon format to CouponResponse
+            try:
+                expires_at = datetime.fromisoformat(ext_coupon['expires_at'].replace('Z', '+00:00'))
+            except:
+                expires_at = ext_coupon['end_time']
+            
+            time_remaining = expires_at - datetime.now()
+            minutes_remaining = max(0, int(time_remaining.total_seconds() / 60))
+            
+            nearby_coupons.append(CouponResponse(
+                id=ext_coupon['id'],
+                shop_name=ext_coupon.get('shop_name', ext_coupon.get('store_name', '店舗名不明')),
+                title=ext_coupon['title'],
+                current_discount=ext_coupon['current_discount'],
+                location=Location(
+                    lat=ext_coupon['location']['lat'],
+                    lng=ext_coupon['location']['lng']
+                ),
+                expires_at=expires_at,
+                time_remaining_minutes=minutes_remaining,
+                distance_meters=round(ext_coupon['distance_meters'], 1),
+                description=ext_coupon.get('description', ''),
+                source="external",
+                store_name=ext_coupon.get('store_name', ext_coupon.get('shop_name', '')),
+                external_url=ext_coupon.get('external_url')
+            ))
+            
+    except Exception as e:
+        # Log error but don't fail the entire request
+        print(f"Failed to fetch external coupons: {e}")
+    
+    # Sort by distance
+    nearby_coupons.sort(key=lambda x: x.distance_meters or 0)
+    
+    return nearby_coupons
