@@ -60,7 +60,7 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
   };
 
   const handleGetCoupon = () => {
-    if (coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') {
+    if (coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon' || coupon.source === 'yahoo') {
       // For external coupons, open the external URL
       let externalUrl = coupon.external_url;
       
@@ -72,6 +72,9 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
       } else if (!externalUrl && (coupon.source === 'hotpepper' || coupon.id.startsWith('hotpepper_'))) {
         const shopId = coupon.external_id || coupon.id.replace('hotpepper_', '');
         externalUrl = `https://www.hotpepper.jp/strJ${shopId}/`;
+      } else if (!externalUrl && (coupon.source === 'yahoo' || coupon.id.startsWith('yahoo_'))) {
+        const shopId = coupon.external_id || coupon.id.replace('yahoo_', '');
+        externalUrl = `https://map.yahoo.co.jp/place/${shopId}`;
       }
       
       if (externalUrl) {
@@ -103,6 +106,9 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
           <div className="header-info">
             {coupon.source === 'hotpepper' && (
               <span className="hotpepper-badge">ホットペッパー 🍽️</span>
+            )}
+            {coupon.source === 'yahoo' && (
+              <span className="yahoo-badge">Yahoo地図 🗺️</span>
             )}
             {coupon.source === 'external' && (
               <span className="external-badge">外部クーポン 🌐</span>
@@ -177,13 +183,15 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
           </div>
           
           <button
-            className={`get-btn ${(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') ? 'external' : (isNearby ? 'enabled' : 'disabled')}`}
+            className={`get-btn ${(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon' || coupon.source === 'yahoo') ? 'external' : (isNearby ? 'enabled' : 'disabled')}`}
             onClick={handleGetCoupon}
-            disabled={!(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon') && !isNearby}
+            disabled={!(coupon.source === 'external' || coupon.source === 'hotpepper' || coupon.source === 'kumapon' || coupon.source === 'yahoo') && !isNearby}
           >
             <span className="btn-text">
               {coupon.source === 'hotpepper' 
                 ? 'ホットペッパーで確認'
+                : coupon.source === 'yahoo'
+                ? 'Yahoo地図で確認'
                 : coupon.source === 'external' || coupon.source === 'kumapon'
                 ? 'クーポンサイトを開く'
                 : (isNearby ? 'クーポンを取得' : 'クーポンを取得')
@@ -192,6 +200,8 @@ const CouponPopup: React.FC<CouponPopupProps> = ({ coupon, userLocation, onClose
             <span className="btn-distance">
               {coupon.source === 'hotpepper' 
                 ? 'お店の詳細とクーポン'
+                : coupon.source === 'yahoo'
+                ? 'Yahoo地図で詳細確認'
                 : coupon.source === 'external' || coupon.source === 'kumapon'
                 ? '外部サイトで確認'
                 : (isNearby ? '取得可能' : '（300m以内で取得可能）')

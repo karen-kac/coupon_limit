@@ -378,7 +378,7 @@ async def get_coupons(
                     expires_at=expires_at,
                     time_remaining_minutes=minutes_remaining,
                     distance_meters=round(ext_coupon['distance_meters'], 1),
-                    source="external",
+                    source=ext_coupon.get('source', 'external'),
                     external_url=ext_coupon.get('external_url')
                 ))
                 

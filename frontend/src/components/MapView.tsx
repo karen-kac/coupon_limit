@@ -79,6 +79,10 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         markerColor = '#4285F4'; // Kumaponクーポン (青色・🐻)
         markerEmoji = '🐻';
         sourceType = 'kumapon';
+      } else if (coupon.source === 'yahoo' || coupon.id.startsWith('yahoo_')) {
+        markerColor = '#FF0033'; // Yahoo地図クーポン (Yahoo赤色・🗺️)
+        markerEmoji = '🗺️';
+        sourceType = 'yahoo';
       } else if (coupon.source === 'external') {
         markerColor = '#4285F4';
         markerEmoji = '🌐';
@@ -111,6 +115,8 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         let pinColor = 'red';
         if (sourceType === 'hotpepper') {
           pinColor = 'orange';
+        } else if (sourceType === 'yahoo') {
+          pinColor = 'red';
         } else if (sourceType === 'kumapon' || sourceType === 'external') {
           pinColor = 'blue';
         }

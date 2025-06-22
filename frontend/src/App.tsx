@@ -5,7 +5,7 @@ import MyPage from './components/MyPage';
 import Settings from './components/Settings';
 import CouponPopup from './components/CouponPopup';
 import { Coupon, UserCoupon, Location } from './types';
-import { getCoupons, getUserCoupons, getCoupon } from './services/api';
+import { getCoupons, getUserCoupons, getCoupon, getInternalCoupons, getExternalCoupons } from './services/api';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -15,13 +15,18 @@ function MainApp() {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'map' | 'mypage' | 'settings'>('mypage');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [internalCoupons, setInternalCoupons] = useState<Coupon[]>([]);
+  const [externalCoupons, setExternalCoupons] = useState<Coupon[]>([]);
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
-  const POLLING_INTERVAL = 30000; // 30秒ごとに更新
+  
+  // 内部クーポンは30秒、外部クーポンは1時間、ユーザークーポンは30秒
+  const INTERNAL_COUPON_POLLING_INTERVAL = 30000; // 30秒
+  const EXTERNAL_COUPON_POLLING_INTERVAL = 3600000; // 1時間 (60 * 60 * 1000)
+  const USER_COUPON_POLLING_INTERVAL = 30000; // 30秒
 
   // データ比較用のヘルパー関数
   const isDataEqual = useCallback((newData: any[], currentData: any[]) => {
@@ -29,82 +34,85 @@ function MainApp() {
     return JSON.stringify(newData) === JSON.stringify(currentData);
   }, []);
 
-  const loadCoupons = useCallback(async (isInitialLoad = false) => {
+  // 内部クーポンのロード
+  const loadInternalCoupons = useCallback(async (isInitialLoad = false) => {
     if (!userLocation) {
-      console.log('loadCoupons: No user location available');
+      console.log('loadInternalCoupons: No user location available');
       return;
     }
     
-    console.log('🔄 Loading coupons for location:', userLocation, isInitialLoad ? '(initial load)' : '(background update)');
-    
-    // 初回ロード時のみローディング状態をtrueにする
-    if (isInitialLoad) {
-      setLoading(true);
-    }
+    console.log('🔄 Loading internal coupons for location:', userLocation, isInitialLoad ? '(initial load)' : '(background update)');
     
     try {
-      const data = await getCoupons(userLocation.lat, userLocation.lng);
-      console.log('✅ Successfully loaded coupons:', data.length, 'items');
+      const data = await getInternalCoupons(userLocation.lat, userLocation.lng);
+      console.log('✅ Successfully loaded internal coupons:', data.length, 'items');
       
       // データが同じ場合は更新をスキップ
-      setCoupons(prevCoupons => {
+      setInternalCoupons(prevCoupons => {
         if (isDataEqual(data, prevCoupons)) {
-          console.log('📋 Coupons data unchanged, skipping update');
+          console.log('📋 Internal coupons data unchanged, skipping update');
           return prevCoupons;
         }
-        console.log('🔄 Coupons data changed, updating:', data.length, 'items');
+        console.log('🔄 Internal coupons data changed, updating:', data.length, 'items');
         return data;
       });
       
-      setError(null);
     } catch (error) {
-      console.error('❌ Error loading coupons:', error);
+      console.error('❌ Error loading internal coupons:', error);
+    }
+  }, [userLocation, isDataEqual]);
+
+  // 外部クーポンのロード
+  const loadExternalCoupons = useCallback(async (isInitialLoad = false) => {
+    if (!userLocation) {
+      console.log('loadExternalCoupons: No user location available');
+      return;
+    }
+    
+    console.log('🔄 Loading external coupons for location:', userLocation, isInitialLoad ? '(initial load)' : '(hourly update)');
+    
+    try {
+      const data = await getExternalCoupons(userLocation.lat, userLocation.lng);
+      console.log('✅ Successfully loaded external coupons:', data.length, 'items');
       
-      // Still try to set mock data as fallback
+      // データが同じ場合は更新をスキップ
+      setExternalCoupons(prevCoupons => {
+        if (isDataEqual(data, prevCoupons)) {
+          console.log('📋 External coupons data unchanged, skipping update');
+          return prevCoupons;
+        }
+        console.log('🔄 External coupons data changed, updating:', data.length, 'items');
+        return data;
+      });
+      
+    } catch (error) {
+      console.error('❌ Error loading external coupons:', error);
+      
+      // フォールバック用のモックデータ
       const mockCoupons = [
         {
-          id: 'fallback_1',
-          store_name: 'テスト店舗 1',
-          shop_name: 'テスト店舗 1',
-          title: 'フォールバック クーポン 30% OFF',
+          id: 'fallback_external_1',
+          store_name: 'テスト外部店舗 1',
+          shop_name: 'テスト外部店舗 1',
+          title: 'フォールバック 外部クーポン 30% OFF',
           current_discount: 30,
           location: { lat: userLocation.lat + 0.001, lng: userLocation.lng + 0.001 },
           expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
           time_remaining_minutes: 120,
           distance_meters: 150,
-          description: 'API取得に失敗したためのテスト用クーポンです',
-          source: 'external' as const,
-          external_url: 'https://example.com'
-        },
-        {
-          id: 'fallback_2',
-          store_name: 'テスト店舗 2',
-          shop_name: 'テスト店舗 2',
-          title: 'フォールバック クーポン 50% OFF',
-          current_discount: 50,
-          location: { lat: userLocation.lat - 0.001, lng: userLocation.lng - 0.001 },
-          expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-          time_remaining_minutes: 180,
-          distance_meters: 250,
-          description: 'API取得に失敗したためのテスト用クーポンです',
+          description: '外部API取得に失敗したためのテスト用クーポンです',
           source: 'external' as const,
           external_url: 'https://example.com'
         }
       ];
       
-      console.log('🔄 Using fallback mock coupons:', mockCoupons.length);
-      setCoupons(prevCoupons => {
+      console.log('🔄 Using fallback mock external coupons:', mockCoupons.length);
+      setExternalCoupons(prevCoupons => {
         if (isDataEqual(mockCoupons, prevCoupons)) {
           return prevCoupons;
         }
         return mockCoupons;
       });
-      setError('クーポンの取得に失敗しましたが、テスト用データを表示しています');
-    } finally {
-      // 初回ロード時のみローディング状態をfalseにする
-      if (isInitialLoad) {
-        setLoading(false);
-      }
     }
   }, [userLocation, isDataEqual]);
 
@@ -128,16 +136,21 @@ function MainApp() {
     }
   }, [isAuthenticated, isDataEqual]);
 
+  // 結合されたクーポンリストをメモ化
+  const allCoupons = useMemo(() => {
+    return [...internalCoupons, ...externalCoupons];
+  }, [internalCoupons, externalCoupons]);
+
   // フィルタリングされたクーポンをメモ化
   const filteredCoupons = useMemo(() => {
-    if (!isAuthenticated) return coupons;
+    if (!isAuthenticated) return allCoupons;
     
-    const filtered = coupons.filter((coupon: Coupon) => 
+    const filtered = allCoupons.filter((coupon: Coupon) => 
       !userCoupons.some(uc => uc.coupon_id === coupon.id)
     );
     
     return filtered;
-  }, [coupons, userCoupons, isAuthenticated]);
+  }, [allCoupons, userCoupons, isAuthenticated]);
 
   // スプラッシュスクリーンと位置情報の取得
   useEffect(() => {
@@ -153,23 +166,66 @@ function MainApp() {
   useEffect(() => {
     if (!userLocation || !isAuthenticated) return;
 
-    loadCoupons(true); // 初回ロード時はローディング表示
-    loadUserCoupons(true);
-  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
+    console.log('🚀 Initial data loading started');
+    
+    // 初回ロード時はローディング表示
+    setLoading(true);
+    
+    // 内部クーポンと外部クーポンを並行して取得
+    Promise.all([
+      loadInternalCoupons(true),
+      loadExternalCoupons(true),
+      loadUserCoupons(true)
+    ]).finally(() => {
+      setLoading(false);
+      setError(null);
+    });
+  }, [userLocation, isAuthenticated, loadInternalCoupons, loadExternalCoupons, loadUserCoupons]);
 
-  // ポーリング設定（別のuseEffect）
+  // 内部クーポンのポーリング設定（30秒間隔）
   useEffect(() => {
     if (!userLocation || !isAuthenticated) return;
 
-    const couponInterval = setInterval(loadCoupons, POLLING_INTERVAL);
-    const userCouponInterval = setInterval(loadUserCoupons, POLLING_INTERVAL);
+    console.log('🔄 Setting up internal coupon polling (30 seconds)');
+    const internalInterval = setInterval(() => {
+      loadInternalCoupons(false);
+    }, INTERNAL_COUPON_POLLING_INTERVAL);
 
     return () => {
-      clearInterval(couponInterval);
+      console.log('🛑 Clearing internal coupon polling');
+      clearInterval(internalInterval);
+    };
+  }, [userLocation, isAuthenticated, loadInternalCoupons]);
+
+  // 外部クーポンのポーリング設定（1時間間隔）
+  useEffect(() => {
+    if (!userLocation || !isAuthenticated) return;
+
+    console.log('🔄 Setting up external coupon polling (1 hour)');
+    const externalInterval = setInterval(() => {
+      loadExternalCoupons(false);
+    }, EXTERNAL_COUPON_POLLING_INTERVAL);
+
+    return () => {
+      console.log('🛑 Clearing external coupon polling');
+      clearInterval(externalInterval);
+    };
+  }, [userLocation, isAuthenticated, loadExternalCoupons]);
+
+  // ユーザークーポンのポーリング設定（30秒間隔）
+  useEffect(() => {
+    if (!userLocation || !isAuthenticated) return;
+
+    console.log('🔄 Setting up user coupon polling (30 seconds)');
+    const userCouponInterval = setInterval(() => {
+      loadUserCoupons(false);
+    }, USER_COUPON_POLLING_INTERVAL);
+
+    return () => {
+      console.log('🛑 Clearing user coupon polling');
       clearInterval(userCouponInterval);
     };
-  }, [userLocation, isAuthenticated, loadCoupons, loadUserCoupons]);
-
+  }, [userLocation, isAuthenticated, loadUserCoupons]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -204,8 +260,16 @@ function MainApp() {
     try {
       await getCoupon(coupon.id, userLocation);
       setSelectedCoupon(null);
+      
+      // クーポン取得後、ユーザークーポンを再読み込み
       loadUserCoupons();
-      loadCoupons();
+      
+      // 内部クーポンも再読み込み（獲得済みクーポンの除外のため）
+      if (coupon.source === 'internal') {
+        loadInternalCoupons();
+      } else {
+        loadExternalCoupons();
+      }
     } catch (error: any) {
       alert(error.message || 'Failed to get coupon');
     }
