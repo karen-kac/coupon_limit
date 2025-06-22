@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Coupon, Location } from '../types';
 import ExplosionEffect from './ExplosionEffect';
 import './ExplosionEffect.css';
@@ -8,6 +9,8 @@ interface MapViewProps {
   coupons: Coupon[];
   onCouponClick: (coupon: Coupon) => void;
   error: string | null;
+  expiringCoupons: Set<string>;
+  onExplosionComplete: (couponId: string) => void;
 }
 
 declare global {
@@ -17,7 +20,7 @@ declare global {
   }
 }
 
-const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick, error }) => {
+const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick, error, expiringCoupons, onExplosionComplete }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -39,6 +42,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     console.log('mapInstanceRef.current:', !!mapInstanceRef.current);
     console.log('window.google:', !!window.google);
     console.log('coupons to process:', coupons.length);
+    console.log('expiringCoupons:', Array.from(expiringCoupons));
     
     if (!mapInstanceRef.current || !window.google) {
       console.log('Early return: no map instance or google maps');
@@ -53,7 +57,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     });
     markersRef.current = [];
 
-    // Add coupon markers
+    // Add coupon markers and explosion effects
     coupons.forEach((coupon, index) => {
       console.log(`Processing coupon ${index}: ${coupon.id}`);
       
@@ -124,77 +128,79 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
         markerIcon = `https://maps.google.com/mapfiles/ms/icons/${pinColor}-dot.png`;
       }
 
-      try {
-        const marker = new window.google.maps.Marker({
-          position: position,
-          map: mapInstanceRef.current,
-          title: `${coupon.store_name || coupon.shop_name} - ${coupon.current_discount}% OFF`,
-          icon: markerIcon,
-          animation: isNearby ? window.google.maps.Animation.BOUNCE : undefined,
-          optimized: false // For custom SVG icons
-        });
-
-        console.log(`✅ Marker created for coupon ${coupon.id} at (${position.lat}, ${position.lng})`);
-
-//     console.log('Calling updateMarkers...');
-//     if (!mapInstanceRef.current) {
-//       console.warn('Map instance not available');
-//       return;
-//     }
-
-//     // 既存のマーカーをクリア
-//     markersRef.current.forEach(marker => marker.setMap(null));
-//     markersRef.current = [];
-
-//     console.log('Processing coupons:', coupons);
-//     coupons.forEach(coupon => {
-//       if (!coupon.location) {
-//         console.warn('Location information missing for coupon:', coupon);
-//         return;
-//       }
-
-//       const position = {
-//         lat: coupon.location.lat,
-//         lng: coupon.location.lng
-//       };
+      // Check if this coupon is expiring
+      const isExpiring = expiringCoupons.has(coupon.id);
       
-//       console.log('Creating marker for store:', coupon.store_name || coupon.shop_name, 'at position:', position);
-      
-//       // Calculate if user is nearby (within 20m)
-//       const isNearby = userLocation && coupon.distance_meters ? coupon.distance_meters <= 20 : false;
-      
-//       const marker = new window.google.maps.Marker({
-//         position,
-//         map: mapInstanceRef.current,
-//         title: `${coupon.store_name || coupon.shop_name} - ${coupon.title}`,
-//         icon: {
-//           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-//             <svg width="1000" height="1000" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-//               <rect x="5" y="5" width="70" height="70" rx="16" fill="${coupon.source === 'external' ? '#4285F4' : '#ff4444'}" stroke="white" stroke-width="4" stroke-dasharray="${isNearby ? '0' : '5,5'}"/>
-//               <text x="40" y="35" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${coupon.source === 'external' ? '🌐' : '🛍️'}</text>
-//               <text x="40" y="55" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">COUPON</text>
-//               <text x="40" y="70" text-anchor="middle" fill="white" font-family="Arial" font-size="12">${coupon.current_discount}%</text>
-//             </svg>
-//           `),
-//           scaledSize: new window.google.maps.Size(80, 80),
-//           anchor: new window.google.maps.Point(40, 75)
-//         }
-//       });
+      if (isExpiring) {
+        console.log(`🎆 Creating explosion effect for coupon ${coupon.id}`);
+        
+        // Create explosion effect instead of marker
+        const explosionOverlay = new window.google.maps.OverlayView();
+        explosionOverlay.onAdd = function() {
+          const div = document.createElement('div');
+          div.style.position = 'absolute';
+          div.style.transform = 'translate(-50%, -50%)';
+          
+          // Mount React component
+          const explosionRoot = document.createElement('div');
+          div.appendChild(explosionRoot);
+          
+          // Use ReactDOM.render to mount the ExplosionEffect
+          const root = createRoot(explosionRoot);
+          const ExplosionComponent = React.createElement(ExplosionEffect, {
+            onComplete: () => {
+              console.log(`🎆 Explosion completed for coupon ${coupon.id}`);
+              onExplosionComplete(coupon.id);
+              explosionOverlay.setMap(null);
+            },
+            useLottie: true
+          });
+          root.render(ExplosionComponent);
+          
+          this.getPanes()!.overlayMouseTarget.appendChild(div);
+          this.div = div;
+        };
+        
+        explosionOverlay.draw = function() {
+          const projection = this.getProjection();
+          const point = projection.fromLatLngToDivPixel(position);
+          if (point && this.div) {
+            this.div.style.left = point.x + 'px';
+            this.div.style.top = point.y + 'px';
+          }
+        };
+        
+        explosionOverlay.onRemove = function() {
+          if (this.div && this.div.parentNode) {
+            this.div.parentNode.removeChild(this.div);
+          }
+        };
+        
+        explosionOverlay.setMap(mapInstanceRef.current);
+        markersRef.current.push(explosionOverlay);
+      } else {
+        // Create normal marker
+        try {
+          const marker = new window.google.maps.Marker({
+            position: position,
+            map: mapInstanceRef.current,
+            title: `${coupon.store_name || coupon.shop_name} - ${coupon.current_discount}% OFF`,
+            icon: markerIcon,
+            animation: isNearby ? window.google.maps.Animation.BOUNCE : undefined,
+            optimized: false // For custom SVG icons
+          });
 
-//       marker.addListener('click', () => {
-//         console.log('Marker clicked:', coupon);
-//         onCouponClick(coupon);
-//       });
+          console.log(`✅ Marker created for coupon ${coupon.id} at (${position.lat}, ${position.lng})`);
 
+          marker.addListener('click', () => {
+            console.log(`Marker clicked for coupon: ${coupon.id}`);
+            onCouponClick(coupon);
+          });
 
-        marker.addListener('click', () => {
-          console.log(`Marker clicked for coupon: ${coupon.id}`);
-          onCouponClick(coupon);
-        });
-
-        markersRef.current.push(marker);
-      } catch (error) {
-        console.error(`Failed to create marker for coupon ${coupon.id}:`, error);
+          markersRef.current.push(marker);
+        } catch (error) {
+          console.error(`Failed to create marker for coupon ${coupon.id}:`, error);
+        }
       }
     });
 
@@ -202,7 +208,7 @@ const MapView: React.FC<MapViewProps> = ({ userLocation, coupons, onCouponClick,
     console.log(`✅ Total markers created: ${markersRef.current.length}`);
     console.log('🔄 Markers updated (map view unchanged)');
 
-  }, [coupons, onCouponClick]);
+  }, [coupons, onCouponClick, expiringCoupons, onExplosionComplete]);
 
   const updateUserMarker = useCallback(() => {
     if (!mapInstanceRef.current || !userLocation || !window.google) {

@@ -22,11 +22,13 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+
   
   // 内部クーポンは30秒、外部クーポンは1時間、ユーザークーポンは30秒
   const INTERNAL_COUPON_POLLING_INTERVAL = 30000; // 30秒
   const EXTERNAL_COUPON_POLLING_INTERVAL = 3600000; // 1時間 (60 * 60 * 1000)
   const USER_COUPON_POLLING_INTERVAL = 30000; // 30秒
+
 
   // データ比較用のヘルパー関数
   const isDataEqual = useCallback((newData: any[], currentData: any[]) => {
@@ -75,6 +77,20 @@ function MainApp() {
       const data = await getExternalCoupons(userLocation.lat, userLocation.lng);
       console.log('✅ Successfully loaded external coupons:', data.length, 'items');
       
+      // 新たに期限切れになったクーポンを検出
+      if (!isInitialLoad && previousCouponIds.size > 0) {
+        const currentIds = new Set(data.map(c => c.id));
+        const newlyExpired = Array.from(previousCouponIds).filter(id => !currentIds.has(id));
+        
+        if (newlyExpired.length > 0) {
+          console.log('🎆 Newly expired coupons detected:', newlyExpired);
+          setExpiringCoupons(prev => new Set([...Array.from(prev), ...newlyExpired]));
+        }
+      }
+      
+      // 前回のクーポンIDセットを更新
+      setPreviousCouponIds(new Set(data.map(c => c.id)));
+      
       // データが同じ場合は更新をスキップ
       setExternalCoupons(prevCoupons => {
         if (isDataEqual(data, prevCoupons)) {
@@ -105,8 +121,10 @@ function MainApp() {
           external_url: 'https://example.com'
         }
       ];
-      
-      console.log('🔄 Using fallback mock external coupons:', mockCoupons.length);
+
+       console.log('🔄 Using fallback mock external coupons:', mockCoupons.length);
+      // ここもpreviousCouponIdsを更新する必要があります
+      setPreviousCouponIds(new Set(mockCoupons.map(c => c.id)));
       setExternalCoupons(prevCoupons => {
         if (isDataEqual(mockCoupons, prevCoupons)) {
           return prevCoupons;
@@ -227,6 +245,31 @@ function MainApp() {
     };
   }, [userLocation, isAuthenticated, loadUserCoupons]);
 
+  // クライアントサイドでの期限切れ監視
+  useEffect(() => {
+    if (allCoupons.length === 0) return;
+
+    const timers = allCoupons.map(coupon => {
+      const expiryTime = new Date(coupon.expires_at).getTime();
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+
+      // 期限切れまで60秒以内の場合のみ監視
+      if (timeUntilExpiry > 0 && timeUntilExpiry <= 60000) {
+        console.log(`⏰ Setting expiration timer for coupon ${coupon.id} in ${Math.round(timeUntilExpiry/1000)}s`);
+        return setTimeout(() => {
+          console.log('🎆 Client-side expiration detected for coupon:', coupon.id);
+          setExpiringCoupons(prev => new Set([...Array.from(prev), coupon.id]));
+        }, timeUntilExpiry);
+      }
+      return null;
+    }).filter(Boolean);
+
+    return () => {
+      timers.forEach(timer => timer && clearTimeout(timer));
+    };
+  }, [coupons]);
+
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by this browser.');
@@ -274,6 +317,16 @@ function MainApp() {
       alert(error.message || 'Failed to get coupon');
     }
   };
+
+  const handleExplosionComplete = useCallback((couponId: string) => {
+    console.log('🎆 Explosion completed for coupon:', couponId);
+    setExpiringCoupons(prev => {
+      const next = new Set(prev);
+      next.delete(couponId);
+      return next;
+    });
+  }, []);
+
 
   if (showSplash) {
     return (
@@ -387,6 +440,8 @@ function MainApp() {
             coupons={filteredCoupons}
             onCouponClick={setSelectedCoupon}
             error={error}
+            expiringCoupons={expiringCoupons}
+            onExplosionComplete={handleExplosionComplete}
           />
         ) : activeTab === 'mypage' ? (
           <MyPage

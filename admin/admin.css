@@ -568,7 +568,8 @@ body {
 .duplicate-btn,
 .delete-btn,
 .view-location-btn,
-.edit-btn {
+.edit-btn,
+.hard-delete-btn {
     padding: 6px 12px;
     border: none;
     border-radius: 6px;
@@ -604,6 +605,17 @@ body {
 
 .delete-btn:hover {
     background: #f8dbc1;
+}
+
+.hard-delete-btn {
+    background: #ffe6e6;
+    color: #cc3333;
+    font-weight: 600;
+}
+
+.hard-delete-btn:hover {
+    background: #ffcccc;
+    color: #aa2222;
 }
 
 .view-location-btn {
