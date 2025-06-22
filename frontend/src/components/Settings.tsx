@@ -8,9 +8,6 @@ const Settings: React.FC = () => {
 
   return (
     <div className="settings-view">
-      <div className="settings-header">
-        <h1>設定</h1>
-      </div>
       
       <div className="settings-section">
         <h3 className="section-title">ユーザー情報</h3>
